@@ -31,4 +31,9 @@
 #define SD_MISO       40
 #define SD_SCLK       41
 
+// ===== ROTARY ENCODER (EC11) =====
+#define ENCODER_CLK   16    // Encoder A
+#define ENCODER_DT    17    // Encoder B
+#define ENCODER_SW    18    // Push button
+
 #endif // PIN_CONFIG_H
