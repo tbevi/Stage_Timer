@@ -1,6 +1,9 @@
 # Precision Rifle Competition Timer
 
 Professional shot timer for PRS/NRL/DMR competitions.
+## STATUS
+
+- Phase 2
 
 ## Features
 
@@ -74,7 +77,7 @@ Click Upload (→) button in bottom toolbar.
 - [x] IMU level indicator
 - [ ] I2S microphone integration
 - [ ] Shot detection algorithm
-- [ ] Countdown timer logic
+- [x] Countdown timer logic
 - [ ] SD card recording
 - [ ] Wireless button
 - [ ] Battery optimization
