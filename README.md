@@ -8,7 +8,8 @@ Professional shot timer for PRS/NRL/DMR competitions.
 - Phase 1:
   - **Real-time level indicator** using IMU (unique feature!)
 - Phase 1.5:
-  - Integrate gyro to avoid false level change readings due to left right movements
+  - ~~Integrate gyro to avoid false level change readings due to left right movements~~
+  - Added filtering/hysterisis to help smoth out level reading.
 - Phase 2
   - Integrate EC11 click rotory encoder.
   - **Countdown timer** with adjustable par time presets (60/90/120/150/180s)
