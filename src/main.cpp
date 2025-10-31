@@ -279,54 +279,61 @@ float calculateSimpleTiltAngle() {
 
 void drawTopMenu() {
     tft.fillScreen(TFT_BLACK);
-    tft.setTextSize(1);
     
     // Title
+    tft.setTextSize(2);
     tft.setTextColor(TFT_WHITE);
-    tft.setCursor(50, 10);
+    tft.setCursor(25, 15);
     tft.println("SETTINGS");
     
-    // Menu items
+    // Menu items with boxes
     const char* menuItems[] = {
         "Level",
         "Display",
         "Exit"
     };
     
-    int startY = 50;
+    int startY = 60;
+    int boxHeight = 50;
+    int spacing = 10;
+    
     for (int i = 0; i < TOP_ITEM_COUNT; i++) {
-        int y = startY + (i * 25);
+        int y = startY + (i * (boxHeight + spacing));
         
-        // Highlight selected item
+        // Draw box
         if (i == selectedTopItem) {
-            tft.fillRect(10, y - 2, 150, 20, TFT_BLUE);
+            tft.fillRect(5, y, 160, boxHeight, TFT_BLUE);
             tft.setTextColor(TFT_WHITE);
         } else {
-            tft.setTextColor(TFT_DARKGREY);
+            tft.drawRect(5, y, 160, boxHeight, TFT_DARKGREY);
+            tft.setTextColor(TFT_LIGHTGREY);
         }
         
-        tft.setCursor(15, y + 3);
+        // Center text
+        tft.setTextSize(2);
+        tft.setCursor(50, y + 17);
         tft.println(menuItems[i]);
     }
     
     // Instructions
+    tft.setTextSize(1);
     tft.setTextColor(TFT_DARKGREY);
-    tft.setCursor(10, 280);
+    tft.setCursor(15, 290);
     tft.println("Turn: Select");
-    tft.setCursor(10, 295);
+    tft.setCursor(15, 305);
     tft.println("Press: Confirm");
 }
 
 void drawLevelSubmenu() {
     tft.fillScreen(TFT_BLACK);
-    tft.setTextSize(1);
     
     // Title
+    tft.setTextSize(2);
     tft.setTextColor(TFT_WHITE);
-    tft.setCursor(10, 10);
+    tft.setCursor(5, 10);
     tft.println("< LEVEL");
     
-    // Menu items
+    // Menu items - name on top, value on bottom
     const char* menuItems[] = {
         "Calibrate",
         "Tolerance",
@@ -334,149 +341,172 @@ void drawLevelSubmenu() {
         "Back"
     };
     
-    int startY = 40;
+    int startY = 50;
+    int boxHeight = 50;
+    int spacing = 8;
+    
     for (int i = 0; i < LEVEL_ITEM_COUNT; i++) {
-        int y = startY + (i * 25);
+        int y = startY + (i * (boxHeight + spacing));
         
-        // Highlight selected item
+        // Draw box
         if (i == selectedLevelItem) {
-            tft.fillRect(10, y - 2, 150, 20, TFT_BLUE);
+            tft.fillRect(5, y, 160, boxHeight, TFT_BLUE);
             tft.setTextColor(TFT_WHITE);
         } else {
-            tft.setTextColor(TFT_DARKGREY);
+            tft.drawRect(5, y, 160, boxHeight, TFT_DARKGREY);
+            tft.setTextColor(TFT_LIGHTGREY);
         }
         
-        tft.setCursor(15, y + 3);
-        tft.print(menuItems[i]);
+        // Menu item name (top)
+        tft.setTextSize(2);
+        tft.setCursor(10, y + 5);
+        tft.println(menuItems[i]);
         
-        // Show current values
+        // Value (bottom)
         if (i == LEVEL_TOLERANCE) {
-            tft.setCursor(110, y + 3);
+            tft.setTextSize(2);
+            tft.setCursor(10, y + 27);
             tft.print(settingTolerance, 1);
-            tft.print("deg");
+            tft.print(" deg");
         } else if (i == LEVEL_HYSTERESIS) {
-            tft.setCursor(110, y + 3);
+            tft.setTextSize(2);
+            tft.setCursor(10, y + 27);
             tft.print(settingHysteresis, 2);
-            tft.print("deg");
+            tft.print(" deg");
         }
     }
     
     // Instructions
+    tft.setTextSize(1);
     tft.setTextColor(TFT_DARKGREY);
-    tft.setCursor(10, 280);
+    tft.setCursor(15, 295);
     tft.println("Turn: Select");
-    tft.setCursor(10, 295);
+    tft.setCursor(15, 310);
     tft.println("Press: Confirm");
 }
 
 void drawDisplaySubmenu() {
     tft.fillScreen(TFT_BLACK);
-    tft.setTextSize(1);
     
     // Title
+    tft.setTextSize(2);
     tft.setTextColor(TFT_WHITE);
-    tft.setCursor(10, 10);
+    tft.setCursor(5, 10);
     tft.println("< DISPLAY");
     
-    // Menu items
+    // Menu items - name on top, value on bottom
     const char* menuItems[] = {
         "Brightness",
-        "LED Brightness",
+        "LED Bright",
         "Back"
     };
     
-    int startY = 40;
+    int startY = 60;
+    int boxHeight = 50;
+    int spacing = 10;
+    
     for (int i = 0; i < DISPLAY_ITEM_COUNT; i++) {
-        int y = startY + (i * 25);
+        int y = startY + (i * (boxHeight + spacing));
         
-        // Highlight selected item
+        // Draw box
         if (i == selectedDisplayItem) {
-            tft.fillRect(10, y - 2, 150, 20, TFT_BLUE);
+            tft.fillRect(5, y, 160, boxHeight, TFT_BLUE);
             tft.setTextColor(TFT_WHITE);
         } else {
-            tft.setTextColor(TFT_DARKGREY);
+            tft.drawRect(5, y, 160, boxHeight, TFT_DARKGREY);
+            tft.setTextColor(TFT_LIGHTGREY);
         }
         
-        tft.setCursor(15, y + 3);
-        tft.print(menuItems[i]);
+        // Menu item name (top)
+        tft.setTextSize(2);
+        tft.setCursor(10, y + 5);
+        tft.println(menuItems[i]);
         
-        // Show current values
+        // Value (bottom)
         if (i == DISPLAY_BRIGHTNESS) {
-            tft.setCursor(130, y + 3);
+            tft.setTextSize(2);
+            tft.setCursor(10, y + 27);
             tft.print(displayBrightness);
         } else if (i == DISPLAY_LED_BRIGHTNESS) {
-            tft.setCursor(130, y + 3);
+            tft.setTextSize(2);
+            tft.setCursor(10, y + 27);
             tft.print(ledBrightness);
         }
     }
     
     // Instructions
+    tft.setTextSize(1);
     tft.setTextColor(TFT_DARKGREY);
-    tft.setCursor(10, 280);
+    tft.setCursor(15, 290);
     tft.println("Turn: Select");
-    tft.setCursor(10, 295);
+    tft.setCursor(15, 305);
     tft.println("Press: Confirm");
 }
 
 void drawValueAdjustment(const char* label, float value, const char* unit) {
     tft.fillScreen(TFT_BLACK);
-    tft.setTextSize(1);
     
     // Title
+    tft.setTextSize(2);
     tft.setTextColor(TFT_WHITE);
-    tft.setCursor(10, 10);
+    tft.setCursor(5, 15);
     tft.print("< ");
     tft.println(label);
     
+    // Large box with value
+    tft.drawRect(5, 80, 160, 90, TFT_WHITE);
+    
     // Large value display
-    tft.setTextSize(3);
+    tft.setTextSize(4);
     tft.setTextColor(COLOR_CYAN);
-    tft.setCursor(20, 100);
+    tft.setCursor(15, 100);
     tft.print(value, 2);
-    tft.print(" ");
+    
+    // Unit below value
     tft.setTextSize(2);
-    tft.println(unit);
+    tft.setCursor(15, 140);
+    tft.print(unit);
     
     // Instructions
     tft.setTextSize(1);
     tft.setTextColor(TFT_DARKGREY);
-    tft.setCursor(10, 250);
+    tft.setCursor(15, 250);
     tft.println("Turn: Adjust");
-    tft.setCursor(10, 265);
-    tft.println("Press: Save");
+    tft.setCursor(15, 265);
+    tft.println("Press: Save & Exit");
 }
 
 void drawValueAdjustment(const char* label, int value, const char* unit) {
     tft.fillScreen(TFT_BLACK);
-    tft.setTextSize(1);
     
     // Title
+    tft.setTextSize(2);
     tft.setTextColor(TFT_WHITE);
-    tft.setCursor(10, 10);
+    tft.setCursor(5, 15);
     tft.print("< ");
     tft.println(label);
     
+    // Large box with value
+    tft.drawRect(5, 80, 160, 90, TFT_WHITE);
+    
     // Large value display
-    tft.setTextSize(3);
+    tft.setTextSize(4);
     tft.setTextColor(COLOR_CYAN);
-    tft.setCursor(50, 100);
+    tft.setCursor(40, 110);
     tft.print(value);
-    tft.print(" ");
-    tft.setTextSize(2);
-    tft.println(unit);
     
     // Visual bar
     int barWidth = map(value, 0, 255, 0, 150);
-    tft.fillRect(10, 180, barWidth, 20, COLOR_GREEN);
-    tft.drawRect(10, 180, 150, 20, TFT_WHITE);
+    tft.fillRect(10, 190, barWidth, 15, COLOR_GREEN);
+    tft.drawRect(10, 190, 150, 15, TFT_WHITE);
     
     // Instructions
     tft.setTextSize(1);
     tft.setTextColor(TFT_DARKGREY);
-    tft.setCursor(10, 250);
+    tft.setCursor(15, 250);
     tft.println("Turn: Adjust");
-    tft.setCursor(10, 265);
-    tft.println("Press: Save");
+    tft.setCursor(15, 265);
+    tft.println("Press: Save & Exit");
 }
 
 void executeTopMenuItem(int item) {
