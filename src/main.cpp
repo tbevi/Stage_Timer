@@ -119,6 +119,13 @@ bool firstDraw = true;
 #define COLOR_BLUE   0x001F   // Standard blue
 #define COLOR_CYAN   0x07FF   // Cyan for calibration
 
+//Global Vars
+const float LEVEL_TOLERANCE = 0.5;
+const float HYSTERESIS = 0.1;
+uint16_t currentLevelColor = COLOR_GREEN;
+// IIR filter for displayed angle
+float displayedAngle = 0;
+const float ALPHA = 0.2;  // 0.1 = very smooth, 0.3 = responsive
 
 void performCalibration() {
     USBSerial.println("\n*** CALIBRATION ***");
@@ -174,7 +181,7 @@ void setup() {
     delay(2000);
     
     USBSerial.println("\n================================");
-    USBSerial.println("=== Stage Timer v1.9 ===");
+    USBSerial.println("=== Stage Timer v1.91 ===");
     USBSerial.println("=== Final Color Fix ===");
     USBSerial.println("================================");
 
@@ -240,7 +247,7 @@ void setup() {
     qmi.configAccelerometer(
         SensorQMI8658::ACC_RANGE_4G,
         SensorQMI8658::ACC_ODR_1000Hz,
-        SensorQMI8658::LPF_MODE_0,
+        SensorQMI8658::LPF_MODE_3,
         true
     );
     qmi.enableAccelerometer();
@@ -301,16 +308,26 @@ void loop() {
         qmi.getAccelerometer(acc.x, acc.y, acc.z);
     }
 
-    // Calculate angle
-    float angle = calculateSimpleTiltAngle();
+    // Calculate raw angle
+    float rawAngle = calculateSimpleTiltAngle();
 
+    // Apply IIR filter for display ONLY
+    displayedAngle = ALPHA * rawAngle + (1.0 - ALPHA) * displayedAngle;
+    
+    // Use RAW angle for state logic (hysteresis)
+    uint16_t newColor;
+    CRGB ledColor;
+    const char* status;
+    
     // Print debug info every 500ms
     static unsigned long lastPrint = 0;
     if (millis() - lastPrint > 500) {
         lastPrint = millis();
         
-        USBSerial.print("Angle: ");
-        USBSerial.print(angle, 2);
+        USBSerial.print("Raw: ");
+        USBSerial.print(rawAngle, 2);
+        USBSerial.print("° Filtered: ");
+        USBSerial.print(displayedAngle, 2);
         USBSerial.print("° | X:");
         USBSerial.print(acc.x, 3);
         USBSerial.print(" Y:");
@@ -319,53 +336,82 @@ void loop() {
         USBSerial.println(acc.z, 3);
     }
 
-    // Determine color - use standard TFT colors since display works normally
-    uint16_t statusColor;
-    CRGB ledColor;
-    const char* status;
+
     
-    if (angle > -0.5 && angle < 0.5) {
-        // LEVEL - GREEN
-        statusColor = COLOR_GREEN;  // Green
-        ledColor = CRGB::Green;
-        status = "LEVEL";
-    } else if (angle >= 0.5) {
-        // CW (positive) - RED
-        statusColor = COLOR_RED;    // Red
-        ledColor = CRGB::Red;
-        status = "CW";
-    } else {  // angle <= -0.5
-        // CCW (negative) - BLUE (or cyan for brighter)
-        statusColor = COLOR_BLUE;     // Blue
-        ledColor = CRGB::Blue;
-        status = "CCW";
+    if (currentLevelColor == COLOR_GREEN) {
+        if (rawAngle > (LEVEL_TOLERANCE + HYSTERESIS)) {
+            newColor = COLOR_RED;
+            ledColor = CRGB::Red;
+            status = "CW";
+        } else if (rawAngle < -(LEVEL_TOLERANCE + HYSTERESIS)) {
+            newColor = COLOR_BLUE;
+            ledColor = CRGB::Blue;
+            status = "CCW";
+        } else {
+            newColor = COLOR_GREEN;
+            ledColor = CRGB::Green;
+            status = "LEVEL";
+        }
+    } else if (currentLevelColor == COLOR_RED) {
+        if (rawAngle < (LEVEL_TOLERANCE - HYSTERESIS)) {
+            newColor = COLOR_GREEN;
+            ledColor = CRGB::Green;
+            status = "LEVEL";
+        } else if (rawAngle < -(LEVEL_TOLERANCE + HYSTERESIS)) {
+            newColor = COLOR_BLUE;
+            ledColor = CRGB::Blue;
+            status = "CCW";
+        } else {
+            newColor = COLOR_RED;
+            ledColor = CRGB::Red;
+            status = "CW";
+        }
+    } else {  // currentLevelColor == COLOR_BLUE
+        if (rawAngle > -(LEVEL_TOLERANCE - HYSTERESIS)) {
+            newColor = COLOR_GREEN;
+            ledColor = CRGB::Green;
+            status = "LEVEL";
+        } else if (rawAngle > (LEVEL_TOLERANCE + HYSTERESIS)) {
+            newColor = COLOR_RED;
+            ledColor = CRGB::Red;
+            status = "CW";
+        } else {
+            newColor = COLOR_BLUE;
+            ledColor = CRGB::Blue;
+            status = "CCW";
+        }
     }
 
-    // Update display at 10Hz
+    // Update current color state if changed
+    if (newColor != currentLevelColor) {
+        currentLevelColor = newColor;
+        lastStatusColor = 0xFFFF;  // Force full redraw
+    }
+        
+    // ===== UPDATE DISPLAY (uses FILTERED angle for smooth numbers) =====
     if (millis() - lastUpdate > 100) {
         lastUpdate = millis();
         
-        // Always redraw if color changed OR first time
-        if (statusColor != lastStatusColor || firstDraw) {
+        // Redraw if color changed OR first time
+        if (currentLevelColor != lastStatusColor || firstDraw) {
             // Clear and redraw the status area
-            tft.fillRect(0, 0, 170, 107, statusColor);
+            tft.fillRect(0, 0, 170, 107, currentLevelColor);
             
             // Draw angle with better contrast
             tft.setTextSize(5);
-            // Use black text on bright backgrounds, white on dark
-            if (statusColor == COLOR_GREEN || statusColor == 0x07FF) {
+            if (currentLevelColor == COLOR_GREEN || currentLevelColor == COLOR_CYAN) {
                 tft.setTextColor(TFT_BLACK);
             } else {
                 tft.setTextColor(TFT_WHITE);
             }
             
             char buf[10];
-            sprintf(buf, "%.1f", angle);
+            sprintf(buf, "%.1f", displayedAngle);
             int textWidth = strlen(buf) * 30;
             int x = (170 - textWidth) / 2;
             
             tft.setCursor(x, 15);
-            tft.print(angle, 1);
+            tft.print(displayedAngle, 1);
             
             // Draw status text
             tft.setTextSize(2);
@@ -373,30 +419,30 @@ void loop() {
             tft.setCursor((170 - statusWidth) / 2, 80);
             tft.println(status);
             
-            lastStatusColor = statusColor;
-            lastDisplayedAngle = angle;
+            lastStatusColor = currentLevelColor;
+            lastDisplayedAngle = displayedAngle;
         }
         // Update angle if it changed significantly
-        else if (abs(angle - lastDisplayedAngle) > 0.05) {
+        else if (abs(displayedAngle - lastDisplayedAngle) > 0.05) {
             // Just update the angle text
-            tft.fillRect(0, 10, 170, 60, statusColor);
+            tft.fillRect(0, 10, 170, 60, currentLevelColor);
             
             tft.setTextSize(5);
-            if (statusColor == COLOR_GREEN || statusColor == 0x07FF) {
+            if (currentLevelColor == COLOR_GREEN || currentLevelColor == COLOR_CYAN) {
                 tft.setTextColor(TFT_BLACK);
             } else {
                 tft.setTextColor(TFT_WHITE);
             }
             
             char buf[10];
-            sprintf(buf, "%.1f", angle);
+            sprintf(buf, "%.1f", displayedAngle);
             int textWidth = strlen(buf) * 30;
             int x = (170 - textWidth) / 2;
             
             tft.setCursor(x, 15);
-            tft.print(angle, 1);
+            tft.print(displayedAngle, 1);
             
-            lastDisplayedAngle = angle;
+            lastDisplayedAngle = displayedAngle;
         }
         
         // Draw lower section on first draw
@@ -406,7 +452,7 @@ void loop() {
             tft.setTextSize(1);
             tft.setTextColor(TFT_DARKGREY);
             tft.setCursor(10, 300);
-            tft.println("Stage Timer v1.9");
+            tft.println("Stage Timer v1.91");
             
             firstDraw = false;
         }
@@ -420,26 +466,21 @@ void loop() {
     if (digitalRead(BOOT_BUTTON) == LOW) {
         USBSerial.println("\n*** RECALIBRATING ***");
         
-        // Flash LED yellow during calibration
         leds[0] = CRGB::Yellow;
         FastLED.show();
         
-        // Show calibrating screen
         tft.fillScreen(TFT_YELLOW);
         tft.setTextColor(TFT_BLACK);
         tft.setTextSize(2);
         tft.setCursor(10, 140);
         tft.println("CALIBRATING...");
         
-        // Wait for button release
         delay(200);
         while(digitalRead(BOOT_BUTTON) == LOW) delay(10);
         delay(500);
         
-        // Perform calibration
         performCalibration();
         
-        // Show success
         tft.fillScreen(COLOR_GREEN);
         tft.setTextColor(TFT_BLACK);
         tft.setTextSize(3);
@@ -451,8 +492,7 @@ void loop() {
         
         delay(1000);
         
-        // Force full redraw
-        lastStatusColor = 0xFFFF;  // Force color update
+        lastStatusColor = 0xFFFF;
         lastDisplayedAngle = 999;
         firstDraw = true;
     }
