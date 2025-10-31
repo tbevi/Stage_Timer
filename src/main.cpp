@@ -113,6 +113,9 @@ bool firstDraw = true;
 #define COLOR_GREEN  0x07E0
 #define COLOR_BLUE   0x001F
 #define COLOR_CYAN   0x07FF
+#define COLOR_YELLOW 0xFFE0
+#define COLOR_WHITE  0xFFFF
+#define COLOR_ORANGE 0xFD20
 
 // Menu states
 enum MenuState {
@@ -120,11 +123,13 @@ enum MenuState {
     MENU_TOP_LEVEL,
     MENU_LEVEL_SUBMENU,
     MENU_DISPLAY_SUBMENU,
+    MENU_TIMER_SUBMENU,
     ADJUSTING_VALUE
 };
 
 enum TopMenuItem {
     TOP_LEVEL,
+    TOP_TIMER,
     TOP_DISPLAY,
     TOP_EXIT,
     TOP_ITEM_COUNT
@@ -145,10 +150,32 @@ enum DisplaySubItem {
     DISPLAY_ITEM_COUNT
 };
 
+enum TimerSubItem {
+    TIMER_PAR_TIME,
+    TIMER_YELLOW_WARNING,
+    TIMER_RED_WARNING,
+    TIMER_BACK,
+    TIMER_ITEM_COUNT
+};
+
 MenuState currentMenu = MAIN_DISPLAY;
 int selectedTopItem = 0;
 int selectedLevelItem = 0;
 int selectedDisplayItem = 0;
+int selectedTimerItem = 0;
+
+// Timer states
+enum TimerState {
+    TIMER_IDLE,
+    TIMER_READY,
+    TIMER_RUNNING,
+    TIMER_FINISHED
+};
+
+TimerState timerState = TIMER_IDLE;
+unsigned long timerStartMillis = 0;
+unsigned long buttonPressStartMillis = 0;
+bool longPressDetected = false;
 
 // Settings (loaded from/saved to flash)
 float settingTolerance = 0.5;
@@ -156,6 +183,11 @@ float settingHysteresis = 0.1;
 int displayBrightness = 255;
 int ledBrightness = 50;
 float settingAlpha = 0.2;
+
+// Timer settings
+int parTimeSeconds = 60;
+int yellowWarningSeconds = 30;
+int redWarningSeconds = 10;
 
 // Current state
 uint16_t currentLevelColor = COLOR_GREEN;
@@ -182,6 +214,11 @@ void loadSettings() {
     ledBrightness = preferences.getInt("led_bright", 50);
     settingAlpha = preferences.getFloat("alpha", 0.2);
     
+    // Timer settings
+    parTimeSeconds = preferences.getInt("par_time", 60);
+    yellowWarningSeconds = preferences.getInt("yellow_warn", 30);
+    redWarningSeconds = preferences.getInt("red_warn", 10);
+    
     // Load calibration if it exists
     if (preferences.getBool("calibrated", false)) {
         gravityRef.x = preferences.getFloat("grav_x", 0);
@@ -195,10 +232,9 @@ void loadSettings() {
     preferences.end();
     
     USBSerial.println("Settings loaded:");
-    USBSerial.print("  Tolerance: "); USBSerial.println(settingTolerance);
-    USBSerial.print("  Hysteresis: "); USBSerial.println(settingHysteresis);
-    USBSerial.print("  Display Brightness: "); USBSerial.println(displayBrightness);
-    USBSerial.print("  LED Brightness: "); USBSerial.println(ledBrightness);
+    USBSerial.print("  Par Time: "); USBSerial.println(parTimeSeconds);
+    USBSerial.print("  Yellow Warning: "); USBSerial.println(yellowWarningSeconds);
+    USBSerial.print("  Red Warning: "); USBSerial.println(redWarningSeconds);
 }
 
 // Save settings to flash
@@ -210,6 +246,10 @@ void saveSettings() {
     preferences.putInt("disp_bright", displayBrightness);
     preferences.putInt("led_bright", ledBrightness);
     preferences.putFloat("alpha", settingAlpha);
+    
+    preferences.putInt("par_time", parTimeSeconds);
+    preferences.putInt("yellow_warn", yellowWarningSeconds);
+    preferences.putInt("red_warn", redWarningSeconds);
     
     preferences.end();
     
@@ -261,20 +301,93 @@ void performCalibration() {
     saveCalibration();
     
     USBSerial.println("Calibration complete!");
-    USBSerial.print("Gravity vector: X:");
-    USBSerial.print(gravityRef.x, 3);
-    USBSerial.print(" Y:");
-    USBSerial.print(gravityRef.y, 3);
-    USBSerial.print(" Z:");
-    USBSerial.print(gravityRef.z, 3);
-    USBSerial.print(" Mag:");
-    USBSerial.println(gravityRef.magnitude, 3);
 }
 
 float calculateSimpleTiltAngle() {
     float xCal = acc.x - gravityRef.x;
     float angle = atan2(xCal, -acc.y) * 180.0 / PI;
     return angle;
+}
+
+void drawProgressBar(int x, int y, int width, int height, float percentage, uint16_t color) {
+    // Draw border
+    tft.drawRect(x, y, width, height, TFT_DARKGREY);
+    
+    // Fill bar based on percentage
+    int fillWidth = (int)((width - 4) * percentage);
+    if (fillWidth > 0) {
+        tft.fillRect(x + 2, y + 2, fillWidth, height - 4, color);
+    }
+    
+    // Clear remaining area
+    int remainWidth = (width - 4) - fillWidth;
+    if (remainWidth > 0) {
+        tft.fillRect(x + 2 + fillWidth, y + 2, remainWidth, height - 4, TFT_BLACK);
+    }
+}
+
+void drawTimerDisplay(int remainingSeconds) {
+    // Timer area starts at y=107, height = 213
+    int timerY = 107;
+    
+    // Determine color based on remaining time
+    uint16_t timerColor;
+    if (remainingSeconds > yellowWarningSeconds) {
+        timerColor = COLOR_WHITE;
+    } else if (remainingSeconds > redWarningSeconds) {
+        timerColor = COLOR_YELLOW;
+    } else {
+        timerColor = COLOR_RED;
+    }
+    
+    // Clear timer area
+    static int lastDrawnSeconds = -1;
+    if (remainingSeconds != lastDrawnSeconds) {
+        tft.fillRect(0, timerY, 170, 213, TFT_BLACK);
+        lastDrawnSeconds = remainingSeconds;
+    }
+    
+    // Draw state text at top
+    tft.setTextSize(1);
+    tft.setTextColor(TFT_DARKGREY);
+    tft.setCursor(10, timerY + 10);
+    if (timerState == TIMER_IDLE) {
+        tft.println("Long press to ready");
+    } else if (timerState == TIMER_READY) {
+        tft.setTextColor(COLOR_GREEN);
+        tft.println("READY - Press to start");
+    } else if (timerState == TIMER_FINISHED) {
+        tft.setTextColor(COLOR_RED);
+        tft.println("TIME!");
+    }
+    
+    // Draw large time display
+    tft.setTextSize(5);
+    tft.setTextColor(timerColor);
+    
+    int minutes = remainingSeconds / 60;
+    int seconds = remainingSeconds % 60;
+    
+    char timeStr[10];
+    sprintf(timeStr, "%d:%02d", minutes, seconds);
+    
+    // Center the time
+    int textWidth = strlen(timeStr) * 30;
+    int x = (170 - textWidth) / 2;
+    tft.setCursor(x, timerY + 50);
+    tft.print(timeStr);
+    
+    // Draw progress bar
+    float percentage = (float)remainingSeconds / (float)parTimeSeconds;
+    drawProgressBar(10, timerY + 130, 150, 30, percentage, timerColor);
+    
+    // Draw par time reference
+    tft.setTextSize(1);
+    tft.setTextColor(TFT_DARKGREY);
+    tft.setCursor(10, timerY + 175);
+    tft.print("Par: ");
+    tft.print(parTimeSeconds);
+    tft.print("s");
 }
 
 void drawTopMenu() {
@@ -286,16 +399,17 @@ void drawTopMenu() {
     tft.setCursor(25, 15);
     tft.println("SETTINGS");
     
-    // Menu items with boxes
+    // Menu items
     const char* menuItems[] = {
         "Level",
+        "Timer",
         "Display",
         "Exit"
     };
     
     int startY = 60;
-    int boxHeight = 50;
-    int spacing = 10;
+    int boxHeight = 45;
+    int spacing = 8;
     
     for (int i = 0; i < TOP_ITEM_COUNT; i++) {
         int y = startY + (i * (boxHeight + spacing));
@@ -311,16 +425,16 @@ void drawTopMenu() {
         
         // Center text
         tft.setTextSize(2);
-        tft.setCursor(50, y + 17);
+        tft.setCursor(45, y + 14);
         tft.println(menuItems[i]);
     }
     
     // Instructions
     tft.setTextSize(1);
     tft.setTextColor(TFT_DARKGREY);
-    tft.setCursor(15, 290);
+    tft.setCursor(15, 295);
     tft.println("Turn: Select");
-    tft.setCursor(15, 305);
+    tft.setCursor(15, 310);
     tft.println("Press: Confirm");
 }
 
@@ -333,7 +447,6 @@ void drawLevelSubmenu() {
     tft.setCursor(5, 10);
     tft.println("< LEVEL");
     
-    // Menu items - name on top, value on bottom
     const char* menuItems[] = {
         "Calibrate",
         "Tolerance",
@@ -348,7 +461,6 @@ void drawLevelSubmenu() {
     for (int i = 0; i < LEVEL_ITEM_COUNT; i++) {
         int y = startY + (i * (boxHeight + spacing));
         
-        // Draw box
         if (i == selectedLevelItem) {
             tft.fillRect(5, y, 160, boxHeight, TFT_BLUE);
             tft.setTextColor(TFT_WHITE);
@@ -357,12 +469,10 @@ void drawLevelSubmenu() {
             tft.setTextColor(TFT_LIGHTGREY);
         }
         
-        // Menu item name (top)
         tft.setTextSize(2);
         tft.setCursor(10, y + 5);
         tft.println(menuItems[i]);
         
-        // Value (bottom)
         if (i == LEVEL_TOLERANCE) {
             tft.setTextSize(2);
             tft.setCursor(10, y + 27);
@@ -376,7 +486,67 @@ void drawLevelSubmenu() {
         }
     }
     
-    // Instructions
+    tft.setTextSize(1);
+    tft.setTextColor(TFT_DARKGREY);
+    tft.setCursor(15, 295);
+    tft.println("Turn: Select");
+    tft.setCursor(15, 310);
+    tft.println("Press: Confirm");
+}
+
+void drawTimerSubmenu() {
+    tft.fillScreen(TFT_BLACK);
+    
+    // Title
+    tft.setTextSize(2);
+    tft.setTextColor(TFT_WHITE);
+    tft.setCursor(5, 10);
+    tft.println("< TIMER");
+    
+    const char* menuItems[] = {
+        "Par Time",
+        "Yellow Warn",
+        "Red Warning",
+        "Back"
+    };
+    
+    int startY = 50;
+    int boxHeight = 50;
+    int spacing = 8;
+    
+    for (int i = 0; i < TIMER_ITEM_COUNT; i++) {
+        int y = startY + (i * (boxHeight + spacing));
+        
+        if (i == selectedTimerItem) {
+            tft.fillRect(5, y, 160, boxHeight, TFT_BLUE);
+            tft.setTextColor(TFT_WHITE);
+        } else {
+            tft.drawRect(5, y, 160, boxHeight, TFT_DARKGREY);
+            tft.setTextColor(TFT_LIGHTGREY);
+        }
+        
+        tft.setTextSize(2);
+        tft.setCursor(10, y + 5);
+        tft.println(menuItems[i]);
+        
+        if (i == TIMER_PAR_TIME) {
+            tft.setTextSize(2);
+            tft.setCursor(10, y + 27);
+            tft.print(parTimeSeconds);
+            tft.print(" sec");
+        } else if (i == TIMER_YELLOW_WARNING) {
+            tft.setTextSize(2);
+            tft.setCursor(10, y + 27);
+            tft.print(yellowWarningSeconds);
+            tft.print(" sec");
+        } else if (i == TIMER_RED_WARNING) {
+            tft.setTextSize(2);
+            tft.setCursor(10, y + 27);
+            tft.print(redWarningSeconds);
+            tft.print(" sec");
+        }
+    }
+    
     tft.setTextSize(1);
     tft.setTextColor(TFT_DARKGREY);
     tft.setCursor(15, 295);
@@ -394,7 +564,6 @@ void drawDisplaySubmenu() {
     tft.setCursor(5, 10);
     tft.println("< DISPLAY");
     
-    // Menu items - name on top, value on bottom
     const char* menuItems[] = {
         "Brightness",
         "LED Bright",
@@ -408,7 +577,6 @@ void drawDisplaySubmenu() {
     for (int i = 0; i < DISPLAY_ITEM_COUNT; i++) {
         int y = startY + (i * (boxHeight + spacing));
         
-        // Draw box
         if (i == selectedDisplayItem) {
             tft.fillRect(5, y, 160, boxHeight, TFT_BLUE);
             tft.setTextColor(TFT_WHITE);
@@ -417,12 +585,10 @@ void drawDisplaySubmenu() {
             tft.setTextColor(TFT_LIGHTGREY);
         }
         
-        // Menu item name (top)
         tft.setTextSize(2);
         tft.setCursor(10, y + 5);
         tft.println(menuItems[i]);
         
-        // Value (bottom)
         if (i == DISPLAY_BRIGHTNESS) {
             tft.setTextSize(2);
             tft.setCursor(10, y + 27);
@@ -434,7 +600,6 @@ void drawDisplaySubmenu() {
         }
     }
     
-    // Instructions
     tft.setTextSize(1);
     tft.setTextColor(TFT_DARKGREY);
     tft.setCursor(15, 290);
@@ -446,28 +611,23 @@ void drawDisplaySubmenu() {
 void drawValueAdjustment(const char* label, float value, const char* unit) {
     tft.fillScreen(TFT_BLACK);
     
-    // Title
     tft.setTextSize(2);
     tft.setTextColor(TFT_WHITE);
     tft.setCursor(5, 15);
     tft.print("< ");
     tft.println(label);
     
-    // Large box with value
     tft.drawRect(5, 80, 160, 90, TFT_WHITE);
     
-    // Large value display
     tft.setTextSize(4);
     tft.setTextColor(COLOR_CYAN);
     tft.setCursor(15, 100);
     tft.print(value, 2);
     
-    // Unit below value
     tft.setTextSize(2);
     tft.setCursor(15, 140);
     tft.print(unit);
     
-    // Instructions
     tft.setTextSize(1);
     tft.setTextColor(TFT_DARKGREY);
     tft.setCursor(15, 250);
@@ -479,28 +639,27 @@ void drawValueAdjustment(const char* label, float value, const char* unit) {
 void drawValueAdjustment(const char* label, int value, const char* unit) {
     tft.fillScreen(TFT_BLACK);
     
-    // Title
     tft.setTextSize(2);
     tft.setTextColor(TFT_WHITE);
     tft.setCursor(5, 15);
     tft.print("< ");
     tft.println(label);
     
-    // Large box with value
     tft.drawRect(5, 80, 160, 90, TFT_WHITE);
     
-    // Large value display
     tft.setTextSize(4);
     tft.setTextColor(COLOR_CYAN);
     tft.setCursor(40, 110);
     tft.print(value);
     
-    // Visual bar
-    int barWidth = map(value, 0, 255, 0, 150);
+    tft.setTextSize(2);
+    tft.setCursor(15, 140);
+    tft.print(unit);
+    
+    int barWidth = map(constrain(value, 0, 255), 0, 255, 0, 150);
     tft.fillRect(10, 190, barWidth, 15, COLOR_GREEN);
     tft.drawRect(10, 190, 150, 15, TFT_WHITE);
     
-    // Instructions
     tft.setTextSize(1);
     tft.setTextColor(TFT_DARKGREY);
     tft.setCursor(15, 250);
@@ -518,6 +677,13 @@ void executeTopMenuItem(int item) {
             drawLevelSubmenu();
             break;
             
+        case TOP_TIMER:
+            currentMenu = MENU_TIMER_SUBMENU;
+            selectedTimerItem = 0;
+            encoder.setPosition(0);
+            drawTimerSubmenu();
+            break;
+            
         case TOP_DISPLAY:
             currentMenu = MENU_DISPLAY_SUBMENU;
             selectedDisplayItem = 0;
@@ -526,14 +692,13 @@ void executeTopMenuItem(int item) {
             break;
             
         case TOP_EXIT:
-            // Save and exit
             saveSettings();
             currentMenu = MAIN_DISPLAY;
             lastStatusColor = 0xFFFF;
             lastDisplayedAngle = 999;
             firstDraw = true;
+            timerState = TIMER_IDLE;
             
-            // Apply brightness settings
             tft.setBrightness(displayBrightness);
             FastLED.setBrightness(ledBrightness);
             
@@ -545,7 +710,6 @@ void executeTopMenuItem(int item) {
 void executeLevelMenuItem(int item) {
     switch(item) {
         case LEVEL_CALIBRATE:
-            // Show calibration screen
             tft.fillScreen(COLOR_CYAN);
             tft.setTextColor(TFT_BLACK);
             tft.setTextSize(1);
@@ -591,6 +755,41 @@ void executeLevelMenuItem(int item) {
     }
 }
 
+void executeTimerMenuItem(int item) {
+    switch(item) {
+        case TIMER_PAR_TIME:
+            currentMenu = ADJUSTING_VALUE;
+            adjustingIntValue = &parTimeSeconds;
+            adjustIntStep = 1;
+            encoder.setPosition(parTimeSeconds);
+            drawValueAdjustment("PAR TIME", parTimeSeconds, "sec");
+            break;
+            
+        case TIMER_YELLOW_WARNING:
+            currentMenu = ADJUSTING_VALUE;
+            adjustingIntValue = &yellowWarningSeconds;
+            adjustIntStep = 1;
+            encoder.setPosition(yellowWarningSeconds);
+            drawValueAdjustment("YELLOW WARN", yellowWarningSeconds, "sec");
+            break;
+            
+        case TIMER_RED_WARNING:
+            currentMenu = ADJUSTING_VALUE;
+            adjustingIntValue = &redWarningSeconds;
+            adjustIntStep = 1;
+            encoder.setPosition(redWarningSeconds);
+            drawValueAdjustment("RED WARNING", redWarningSeconds, "sec");
+            break;
+            
+        case TIMER_BACK:
+            currentMenu = MENU_TOP_LEVEL;
+            selectedTopItem = 1;
+            encoder.setPosition(1);
+            drawTopMenu();
+            break;
+    }
+}
+
 void executeDisplayMenuItem(int item) {
     switch(item) {
         case DISPLAY_BRIGHTNESS:
@@ -611,8 +810,8 @@ void executeDisplayMenuItem(int item) {
             
         case DISPLAY_BACK:
             currentMenu = MENU_TOP_LEVEL;
-            selectedTopItem = 1;
-            encoder.setPosition(1);
+            selectedTopItem = 2;
+            encoder.setPosition(2);
             drawTopMenu();
             break;
     }
@@ -627,17 +826,6 @@ void updateMainDisplay() {
     // Calculate angles
     float rawAngle = calculateSimpleTiltAngle();
     displayedAngle = settingAlpha * rawAngle + (1.0 - settingAlpha) * displayedAngle;
-
-    // Debug output
-    static unsigned long lastPrint = 0;
-    if (millis() - lastPrint > 500) {
-        lastPrint = millis();
-        USBSerial.print("Raw: ");
-        USBSerial.print(rawAngle, 2);
-        USBSerial.print("° Filtered: ");
-        USBSerial.print(displayedAngle, 2);
-        USBSerial.println("°");
-    }
 
     // Hysteresis state logic
     uint16_t newColor;
@@ -693,10 +881,11 @@ void updateMainDisplay() {
         lastStatusColor = 0xFFFF;
     }
 
-    // Update display
+    // Update display at 10Hz
     if (millis() - lastUpdate > 100) {
         lastUpdate = millis();
         
+        // Update level indicator (top 1/3)
         if (currentLevelColor != lastStatusColor || firstDraw) {
             tft.fillRect(0, 0, 170, 107, currentLevelColor);
             
@@ -743,17 +932,33 @@ void updateMainDisplay() {
             lastDisplayedAngle = displayedAngle;
         }
         
-        if (firstDraw) {
-            tft.fillRect(0, 107, 170, 213, TFT_BLACK);
-            tft.setTextSize(1);
-            tft.setTextColor(TFT_DARKGREY);
-            tft.setCursor(10, 300);
-            tft.println("Stage Timer v2.0");
-            firstDraw = false;
+        // Update timer display (lower 2/3)
+        int remainingSeconds;
+        if (timerState == TIMER_RUNNING) {
+            unsigned long elapsedMillis = millis() - timerStartMillis;
+            int elapsedSeconds = elapsedMillis / 1000;
+            remainingSeconds = parTimeSeconds - elapsedSeconds;
+            
+            if (remainingSeconds <= 0) {
+                remainingSeconds = 0;
+                timerState = TIMER_FINISHED;
+                // Beep or flash LED
+                leds[0] = CRGB::Red;
+                FastLED.show();
+            }
+        } else {
+            remainingSeconds = parTimeSeconds;
         }
         
-        leds[0] = ledColor;
-        FastLED.show();
+        drawTimerDisplay(remainingSeconds);
+        
+        // Update LED for level indicator (unless timer finished)
+        if (timerState != TIMER_FINISHED) {
+            leds[0] = ledColor;
+            FastLED.show();
+        }
+        
+        firstDraw = false;
     }
 }
 
@@ -762,11 +967,10 @@ void setup() {
     delay(2000);
     
     USBSerial.println("\n================================");
-    USBSerial.println("=== Stage Timer v2.0 ===");
-    USBSerial.println("=== Two-Level Menu ===");
+    USBSerial.println("=== Stage Timer v2.5 ===");
+    USBSerial.println("=== With Countdown Timer ===");
     USBSerial.println("================================");
 
-    // Load settings from flash first
     loadSettings();
 
     // RGB LED
@@ -820,7 +1024,6 @@ void setup() {
 
     pinMode(BOOT_BUTTON, INPUT_PULLUP);
 
-    // Show calibration prompt if not calibrated
     if (!calibrated) {
         tft.fillScreen(COLOR_CYAN);
         tft.setTextColor(TFT_BLACK);
@@ -843,7 +1046,6 @@ void setup() {
         performCalibration();
     }
     
-    // Show ready screen
     tft.fillScreen(COLOR_GREEN);
     tft.setTextColor(TFT_BLACK);
     tft.setTextSize(3);
@@ -859,59 +1061,100 @@ void setup() {
 }
 
 void loop() {
-    // Check encoder button
+    // Handle encoder button for timer control AND menu
     static bool lastButtonState = HIGH;
     static unsigned long lastButtonTime = 0;
     bool buttonState = digitalRead(ENCODER_SW);
     
-    if (buttonState == LOW && lastButtonState == HIGH && (millis() - lastButtonTime > 50)) {
-        lastButtonTime = millis();
-        
-        if (currentMenu == MAIN_DISPLAY) {
-            // Enter settings menu
-            currentMenu = MENU_TOP_LEVEL;
-            selectedTopItem = 0;
-            encoder.setPosition(0);
-            drawTopMenu();
-            USBSerial.println("Entered top menu");
-        } else if (currentMenu == MENU_TOP_LEVEL) {
-            executeTopMenuItem(selectedTopItem);
-        } else if (currentMenu == MENU_LEVEL_SUBMENU) {
-            executeLevelMenuItem(selectedLevelItem);
-        } else if (currentMenu == MENU_DISPLAY_SUBMENU) {
-            executeDisplayMenuItem(selectedDisplayItem);
-        } else if (currentMenu == ADJUSTING_VALUE) {
-            // Save value and go back
-            if (adjustingFloatValue != nullptr) {
-                // Already adjusted in real-time
-                if (adjustingFloatValue == &settingTolerance) {
-                    currentMenu = MENU_LEVEL_SUBMENU;
-                    drawLevelSubmenu();
-                } else if (adjustingFloatValue == &settingHysteresis) {
-                    currentMenu = MENU_LEVEL_SUBMENU;
-                    drawLevelSubmenu();
-                }
-                adjustingFloatValue = nullptr;
-            } else if (adjustingIntValue != nullptr) {
-                // Apply brightness immediately
-                if (adjustingIntValue == &displayBrightness) {
-                    tft.setBrightness(displayBrightness);
-                    currentMenu = MENU_DISPLAY_SUBMENU;
-                    drawDisplaySubmenu();
-                } else if (adjustingIntValue == &ledBrightness) {
-                    FastLED.setBrightness(ledBrightness);
-                    currentMenu = MENU_DISPLAY_SUBMENU;
-                    drawDisplaySubmenu();
-                }
-                adjustingIntValue = nullptr;
+    // Detect button press
+    if (buttonState == LOW && lastButtonState == HIGH) {
+        buttonPressStartMillis = millis();
+        longPressDetected = false;
+    }
+    
+    // Detect long press (>1 second) in main display for timer ready
+    if (buttonState == LOW && !longPressDetected && currentMenu == MAIN_DISPLAY) {
+        if (millis() - buttonPressStartMillis > 1000) {
+            longPressDetected = true;
+            if (timerState == TIMER_IDLE || timerState == TIMER_FINISHED) {
+                timerState = TIMER_READY;
+                USBSerial.println("Timer READY");
+                leds[0] = CRGB::Yellow;
+                FastLED.show();
             }
-            saveSettings();
-            USBSerial.println("Value saved");
+        }
+    }
+    
+    // Detect button release (short press)
+    if (buttonState == HIGH && lastButtonState == LOW && (millis() - buttonPressStartMillis > 50)) {
+        if (!longPressDetected) {
+            // Short press
+            if (currentMenu == MAIN_DISPLAY) {
+                if (timerState == TIMER_READY) {
+                    // Start timer
+                    timerState = TIMER_RUNNING;
+                    timerStartMillis = millis();
+                    USBSerial.println("Timer STARTED");
+                } else if (timerState == TIMER_RUNNING || timerState == TIMER_FINISHED) {
+                    // Reset timer
+                    timerState = TIMER_IDLE;
+                    USBSerial.println("Timer RESET");
+                } else {
+                    // Enter menu
+                    currentMenu = MENU_TOP_LEVEL;
+                    selectedTopItem = 0;
+                    encoder.setPosition(0);
+                    drawTopMenu();
+                    USBSerial.println("Entered top menu");
+                }
+            } else if (currentMenu == MENU_TOP_LEVEL) {
+                executeTopMenuItem(selectedTopItem);
+            } else if (currentMenu == MENU_LEVEL_SUBMENU) {
+                executeLevelMenuItem(selectedLevelItem);
+            } else if (currentMenu == MENU_TIMER_SUBMENU) {
+                executeTimerMenuItem(selectedTimerItem);
+            } else if (currentMenu == MENU_DISPLAY_SUBMENU) {
+                executeDisplayMenuItem(selectedDisplayItem);
+            } else if (currentMenu == ADJUSTING_VALUE) {
+                // Save and return
+                if (adjustingFloatValue != nullptr) {
+                    if (adjustingFloatValue == &settingTolerance) {
+                        currentMenu = MENU_LEVEL_SUBMENU;
+                        drawLevelSubmenu();
+                    } else if (adjustingFloatValue == &settingHysteresis) {
+                        currentMenu = MENU_LEVEL_SUBMENU;
+                        drawLevelSubmenu();
+                    }
+                    adjustingFloatValue = nullptr;
+                } else if (adjustingIntValue != nullptr) {
+                    if (adjustingIntValue == &displayBrightness) {
+                        tft.setBrightness(displayBrightness);
+                        currentMenu = MENU_DISPLAY_SUBMENU;
+                        drawDisplaySubmenu();
+                    } else if (adjustingIntValue == &ledBrightness) {
+                        FastLED.setBrightness(ledBrightness);
+                        currentMenu = MENU_DISPLAY_SUBMENU;
+                        drawDisplaySubmenu();
+                    } else if (adjustingIntValue == &parTimeSeconds) {
+                        currentMenu = MENU_TIMER_SUBMENU;
+                        drawTimerSubmenu();
+                    } else if (adjustingIntValue == &yellowWarningSeconds) {
+                        currentMenu = MENU_TIMER_SUBMENU;
+                        drawTimerSubmenu();
+                    } else if (adjustingIntValue == &redWarningSeconds) {
+                        currentMenu = MENU_TIMER_SUBMENU;
+                        drawTimerSubmenu();
+                    }
+                    adjustingIntValue = nullptr;
+                }
+                saveSettings();
+                USBSerial.println("Value saved");
+            }
         }
     }
     lastButtonState = buttonState;
     
-    // Check encoder rotation
+    // Handle encoder rotation
     static int lastEncoderPos = 0;
     int newPos = encoder.getPosition();
     
@@ -928,13 +1171,18 @@ void loop() {
             if (selectedLevelItem < 0) selectedLevelItem = LEVEL_ITEM_COUNT - 1;
             if (selectedLevelItem >= LEVEL_ITEM_COUNT) selectedLevelItem = 0;
             drawLevelSubmenu();
+        } else if (currentMenu == MENU_TIMER_SUBMENU) {
+            selectedTimerItem += delta;
+            if (selectedTimerItem < 0) selectedTimerItem = TIMER_ITEM_COUNT - 1;
+            if (selectedTimerItem >= TIMER_ITEM_COUNT) selectedTimerItem = 0;
+            drawTimerSubmenu();
         } else if (currentMenu == MENU_DISPLAY_SUBMENU) {
             selectedDisplayItem += delta;
             if (selectedDisplayItem < 0) selectedDisplayItem = DISPLAY_ITEM_COUNT - 1;
             if (selectedDisplayItem >= DISPLAY_ITEM_COUNT) selectedDisplayItem = 0;
             drawDisplaySubmenu();
         } else if (currentMenu == ADJUSTING_VALUE) {
-            // Adjust value in real-time
+            // Adjust values
             if (adjustingFloatValue != nullptr) {
                 if (adjustingFloatValue == &settingTolerance) {
                     *adjustingFloatValue = newPos * 0.1;
@@ -958,6 +1206,18 @@ void loop() {
                     leds[0] = CRGB::White;
                     FastLED.show();
                     drawValueAdjustment("LED BRIGHTNESS", *adjustingIntValue, "");
+                } else if (adjustingIntValue == &parTimeSeconds) {
+                    *adjustingIntValue = newPos;
+                    *adjustingIntValue = constrain(*adjustingIntValue, 5, 600);
+                    drawValueAdjustment("PAR TIME", *adjustingIntValue, "sec");
+                } else if (adjustingIntValue == &yellowWarningSeconds) {
+                    *adjustingIntValue = newPos;
+                    *adjustingIntValue = constrain(*adjustingIntValue, 5, parTimeSeconds - 5);
+                    drawValueAdjustment("YELLOW WARN", *adjustingIntValue, "sec");
+                } else if (adjustingIntValue == &redWarningSeconds) {
+                    *adjustingIntValue = newPos;
+                    *adjustingIntValue = constrain(*adjustingIntValue, 1, yellowWarningSeconds - 5);
+                    drawValueAdjustment("RED WARNING", *adjustingIntValue, "sec");
                 }
             }
         }
@@ -965,7 +1225,7 @@ void loop() {
         lastEncoderPos = newPos;
     }
     
-    // Update appropriate display
+    // Update display
     if (currentMenu == MAIN_DISPLAY) {
         updateMainDisplay();
     }

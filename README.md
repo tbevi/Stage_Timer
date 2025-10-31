@@ -33,6 +33,11 @@ Professional shot timer for PRS/NRL/DMR competitions.
 - QMI8658 6-axis IMU
 - I2S MEMS microphone (SPH0645)
 - EC11 rotary encoder with push button
+  - Integrated, connect pins as follows:
+  - GPIO 16    // Encoder A
+  - GPIO 17    // Encoder B
+  - GPIO 18    // Push button
+  - GND        // GND PINS
 - Piezo buzzer (85+ dB) (PN TBD)
 - MicroSD card slot
 - Wireless remote button (TBD but leaning toward ESP32-C3 based)
