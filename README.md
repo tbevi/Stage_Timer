@@ -8,8 +8,14 @@ Currently in active development.
 Phase 2.5 published. Trainer mode not yet integrated.
 Working on Phase 3
 
-## Features
+## KNOWN BUGS
 
+- Buzzer volume adjustment not working
+- Screen brightness setting not working
+- LED sticks red when timer ends until you enter and exit menu
+- Beeps could use tweeking
+                                                                           
+## Features
 
 - Phase 1:
   - **Real-time level indicator** using IMU (unique feature!)
