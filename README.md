@@ -2,8 +2,11 @@
 
 Professional shot timer for PRS/NRL/DMR competitions.
 ## STATUS
+ **Work in Progress** 
 
-- Phase 2
+Currently in active development.
+Phase 2.5 published. Trainer mode note yet integrated.
+Working on Phase 3
 
 ## Features
 
@@ -45,14 +48,6 @@ Professional shot timer for PRS/NRL/DMR competitions.
 - Piezo buzzer (85+ dB) (https://www.amazon.com/dp/B0DHGP95K4?ref=ppx_yo2ov_dt_b_fed_asin_title&th=1)
 - MicroSD card slot
 - Wireless remote button (TBD but leaning toward ESP32-C3 based)
-
-## Status
-
- **Work in Progress** 
-
-Currently in active development.
-Phase 2.5 published. Trainer mode note yet integrated.
-Working on Phase 3
 
 ## Getting Started
 
