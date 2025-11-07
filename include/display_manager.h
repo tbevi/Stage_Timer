@@ -38,6 +38,9 @@ public:
     // Timer display (bottom 2/3)
     void drawTimerDisplay(int remainingSeconds, float percentage, uint16_t timerColor, const char* stateText);
     
+    // Full screen displays
+    void drawShooterReady();  // <-- Add this line
+    
     // Helper functions
     void drawProgressBar(int x, int y, int width, int height, float percentage, uint16_t color);
     

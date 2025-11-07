@@ -10,6 +10,7 @@
 #include "timer.h"
 #include "menu_system.h"
 #include "display_manager.h"
+#include "buzzer.h"  // <-- Add this
 #include <SensorQMI8658.hpp>
 
 #define USBSerial Serial
@@ -29,8 +30,8 @@ void setup() {
     delay(2000);
     
     USBSerial.println("\n================================");
-    USBSerial.println("=== Stage Timer v3.0 ===");
-    USBSerial.println("=== Modular Edition ===");
+    USBSerial.println("=== Stage Timer v3.1 ===");
+    USBSerial.println("=== With Buzzer ===");
     USBSerial.println("================================");
 
     // Load settings from flash
@@ -43,6 +44,9 @@ void setup() {
     leds[0] = CRGB::Purple;
     FastLED.show();
     USBSerial.println("RGB LED: OK!");
+
+    // Initialize Buzzer
+    buzzer.begin();  // <-- Add this
 
     // Initialize Display
     USBSerial.println("Initializing display...");
@@ -129,6 +133,7 @@ void loop() {
     // Update modules
     levelMonitor.update();
     timer.update();
+    buzzer.update();  // <-- Add this
     
     // Handle encoder button
     static bool lastButtonState = HIGH;
@@ -193,46 +198,68 @@ void loop() {
         if (millis() - lastDisplayUpdate > 100) {
             lastDisplayUpdate = millis();
             
-            // Update level indicator
-            if (levelMonitor.needsRedraw()) {
-                display.drawLevelIndicator(
-                    levelMonitor.getFilteredAngle(),
-                    levelMonitor.getStatusColor(),
-                    levelMonitor.getStatusText()
-                );
-                levelMonitor.clearRedrawFlag();
+            // Check if we're in SHOOTER READY mode
+            static TimerState lastTimerState = TIMER_IDLE;
+            TimerState currentTimerState = timer.getState();
+
+           if (currentTimerState == TIMER_READY) {
+                // Draw full-screen SHOOTER READY if state just changed
+                if (lastTimerState != TIMER_READY) {
+                    display.drawShooterReady();
+                }
+                // Don't update anything else while in READY mode
+                lastTimerState = currentTimerState;
             } else {
-                display.updateLevelAngle(
-                    levelMonitor.getFilteredAngle(),
-                    levelMonitor.getStatusColor()
+                // Normal display updates
+                
+                // If we just left READY state, force full redraw
+                if (lastTimerState == TIMER_READY) {
+                    display.getTFT()->fillScreen(TFT_BLACK);
+                }
+                
+                // Update level indicator
+                if (levelMonitor.needsRedraw() || lastTimerState == TIMER_READY) {
+                    display.drawLevelIndicator(
+                        levelMonitor.getFilteredAngle(),
+                        levelMonitor.getStatusColor(),
+                        levelMonitor.getStatusText()
+                    );
+                    levelMonitor.clearRedrawFlag();
+                } else {
+                    display.updateLevelAngle(
+                        levelMonitor.getFilteredAngle(),
+                        levelMonitor.getStatusColor()
+                    );
+                }
+                
+                // Update timer display
+                const char* timerStateText;
+                switch(currentTimerState) {
+                    case TIMER_IDLE:
+                        timerStateText = "Long press to ready";
+                        break;
+                    case TIMER_READY:
+                        timerStateText = "READY - Press to start";
+                        break;
+                    case TIMER_RUNNING:
+                        timerStateText = "RUNNING";
+                        break;
+                    case TIMER_FINISHED:
+                        timerStateText = "TIME!";
+                        break;
+                    default:
+                        timerStateText = "";
+                }
+                
+                display.drawTimerDisplay(
+                    timer.getRemainingSeconds(),
+                    timer.getPercentRemaining(),
+                    timer.getTimerColor(),
+                    timerStateText
                 );
+                
+                lastTimerState = currentTimerState;
             }
-            
-            // Update timer display
-            const char* timerStateText;
-            switch(timer.getState()) {
-                case TIMER_IDLE:
-                    timerStateText = "Long press to ready";
-                    break;
-                case TIMER_READY:
-                    timerStateText = "READY - Press to start";
-                    break;
-                case TIMER_RUNNING:
-                    timerStateText = "RUNNING";
-                    break;
-                case TIMER_FINISHED:
-                    timerStateText = "TIME!";
-                    break;
-                default:
-                    timerStateText = "";
-            }
-            
-            display.drawTimerDisplay(
-                timer.getRemainingSeconds(),
-                timer.getPercentRemaining(),
-                timer.getTimerColor(),
-                timerStateText
-            );
             
             // Update LED (unless timer finished)
             if (timer.getState() != TIMER_FINISHED) {

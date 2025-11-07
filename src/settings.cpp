@@ -13,7 +13,8 @@ Settings::Settings() {
     parTimeSeconds = 60;
     yellowWarningSeconds = 30;
     redWarningSeconds = 10;
-    
+    buzzerVolume = 50; 
+
     gravity.x = 0;
     gravity.y = 0;
     gravity.z = 0;
@@ -33,6 +34,8 @@ void Settings::load() {
     parTimeSeconds = preferences.getInt("par_time", 60);
     yellowWarningSeconds = preferences.getInt("yellow_warn", 30);
     redWarningSeconds = preferences.getInt("red_warn", 10);
+  
+    buzzerVolume = preferences.getInt("buzzer_vol", 50);    
     
     gravity.isCalibrated = preferences.getBool("calibrated", false);
     if (gravity.isCalibrated) {
@@ -61,6 +64,8 @@ void Settings::save() {
     preferences.putInt("yellow_warn", yellowWarningSeconds);
     preferences.putInt("red_warn", redWarningSeconds);
     
+    preferences.putInt("buzzer_vol", buzzerVolume); 
+
     preferences.end();
     
     Serial.println("Settings saved to flash");

@@ -3,6 +3,7 @@
 #include "level_monitor.h"
 #include "display_manager.h"
 #include <FastLED.h>
+#include "buzzer.h"
 
 extern CRGB leds[];
 
@@ -35,6 +36,7 @@ enum TimerSubItem {
 enum DisplaySubItem {
     DISPLAY_BRIGHTNESS,
     DISPLAY_LED_BRIGHTNESS,
+    DISPLAY_BUZZER_VOLUME, 
     DISPLAY_BACK,
     DISPLAY_ITEM_COUNT
 };
@@ -90,6 +92,9 @@ void MenuSystem::handleButton() {
                 drawDisplaySubmenu();
             } else if (adjustingIntValue == &settings.ledBrightness) {
                 FastLED.setBrightness(settings.ledBrightness);
+                currentMenu = MENU_DISPLAY_SUBMENU;
+                drawDisplaySubmenu();
+            } else if (adjustingIntValue == &settings.buzzerVolume) {  // <-- Add this
                 currentMenu = MENU_DISPLAY_SUBMENU;
                 drawDisplaySubmenu();
             } else {
@@ -149,6 +154,14 @@ void MenuSystem::handleRotation(int delta) {
                 leds[0] = CRGB::White;
                 FastLED.show();
                 drawValueAdjustment("LED BRIGHTNESS", *adjustingIntValue, "");
+            } else if (adjustingIntValue == &settings.buzzerVolume) {  // <-- Add this
+                *adjustingIntValue = newPos * 5;
+                *adjustingIntValue = constrain(*adjustingIntValue, 0, 100);
+                // Test beep when adjusting
+                if (newPos % 4 == 0) {  // Beep every 20% change
+                    buzzer.beepStart();
+                }
+                drawValueAdjustment("BUZZER VOL", *adjustingIntValue, "%");    
             } else if (adjustingIntValue == &settings.parTimeSeconds) {
                 *adjustingIntValue = newPos;
                 *adjustingIntValue = constrain(*adjustingIntValue, 5, 600);
@@ -305,10 +318,10 @@ void MenuSystem::drawDisplaySubmenu() {
     tft->setCursor(5, 10);
     tft->println("< DISPLAY");
     
-    const char* menuItems[] = {"Brightness", "LED Bright", "Back"};
-    int startY = 60;
-    int boxHeight = 50;
-    int spacing = 10;
+    const char* menuItems[] = {"Brightness", "LED Bright", "Buzzer Vol", "Back"};
+    int startY = 50;
+    int boxHeight = 45;
+    int spacing = 6;
     
     for (int i = 0; i < DISPLAY_ITEM_COUNT; i++) {
         int y = startY + (i * (boxHeight + spacing));
@@ -326,11 +339,18 @@ void MenuSystem::drawDisplaySubmenu() {
         tft->println(menuItems[i]);
         
         if (i == DISPLAY_BRIGHTNESS) {
-            tft->setCursor(10, y + 27);
+            tft->setTextSize(2);
+            tft->setCursor(10, y + 25);
             tft->print(settings.displayBrightness);
         } else if (i == DISPLAY_LED_BRIGHTNESS) {
-            tft->setCursor(10, y + 27);
+            tft->setTextSize(2);
+            tft->setCursor(10, y + 25);
             tft->print(settings.ledBrightness);
+        } else if (i == DISPLAY_BUZZER_VOLUME) {
+            tft->setTextSize(2);
+            tft->setCursor(10, y + 25);
+            tft->print(settings.buzzerVolume);
+            tft->print("%");
         }
     }
     
@@ -513,6 +533,12 @@ void MenuSystem::executeDisplayMenuItem(int item) {
             adjustingIntValue = &settings.ledBrightness;
             encoder->setPosition(settings.ledBrightness / 5);
             drawValueAdjustment("LED BRIGHTNESS", settings.ledBrightness, "");
+            break;
+        case DISPLAY_BUZZER_VOLUME:  // <-- Add this
+            currentMenu = ADJUSTING_VALUE;
+            adjustingIntValue = &settings.buzzerVolume;
+            encoder->setPosition(settings.buzzerVolume / 5);
+            drawValueAdjustment("BUZZER VOL", settings.buzzerVolume, "%");
             break;
         case DISPLAY_BACK:
             currentMenu = MENU_TOP_LEVEL;

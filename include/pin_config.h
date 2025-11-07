@@ -36,4 +36,7 @@
 #define ENCODER_DT    17    // Encoder B
 #define ENCODER_SW    18    // Push button
 
+// ===== BUZZER =====
+#define BUZZER_PIN    1
+
 #endif // PIN_CONFIG_H

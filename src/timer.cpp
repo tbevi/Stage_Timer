@@ -1,5 +1,6 @@
 #include "timer.h"
 #include "settings.h"
+#include "buzzer.h"  // <-- Add this
 
 CountdownTimer timer;
 
@@ -27,6 +28,7 @@ void CountdownTimer::start() {
         state = TIMER_RUNNING;
         startMillis = millis();
         redrawNeeded = true;
+        buzzer.beepStart();  // <-- Add buzzer beep on start
         Serial.println("Timer STARTED");
     }
 }
@@ -38,13 +40,37 @@ void CountdownTimer::reset() {
 }
 
 void CountdownTimer::update() {
+    static int lastRemaining = -1;
+    
     if (state == TIMER_RUNNING) {
         int remaining = getRemainingSeconds();
+        
+        // Check for warning thresholds
+        if (lastRemaining != remaining) {
+            // Yellow warning (crossing threshold)
+            if (lastRemaining == settings.yellowWarningSeconds + 1 && 
+                remaining == settings.yellowWarningSeconds) {
+                buzzer.beepYellowWarning();
+            }
+            
+            // Red warning (crossing threshold)
+            if (lastRemaining == settings.redWarningSeconds + 1 && 
+                remaining == settings.redWarningSeconds) {
+                buzzer.beepRedWarning();
+            }
+            
+            lastRemaining = remaining;
+        }
+        
+        // Timer finished
         if (remaining <= 0) {
             state = TIMER_FINISHED;
             redrawNeeded = true;
+            buzzer.beepFinished();
             Serial.println("Timer FINISHED!");
         }
+    } else {
+        lastRemaining = -1;  // Reset when not running
     }
 }
 

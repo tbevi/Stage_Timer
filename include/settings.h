@@ -19,6 +19,9 @@ public:
     int yellowWarningSeconds;
     int redWarningSeconds;
     
+    // Buzzer settings
+    int buzzerVolume;
+
     // Calibration data
     struct {
         float x;

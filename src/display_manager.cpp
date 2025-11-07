@@ -1,6 +1,5 @@
 #include "display_manager.h"
 #include "settings.h" 
-
 DisplayManager display;
 
 LGFX::LGFX(void) {
@@ -191,4 +190,34 @@ void DisplayManager::drawTimerDisplay(int remainingSeconds, float percentage, ui
         tft.println("Stage Timer v3.0");
         firstDraw = false;
     }
+}
+
+void DisplayManager::drawShooterReady() {
+    // Full screen yellow with black text
+    tft.fillScreen(COLOR_YELLOW);
+    
+    // Large "SHOOTER READY" text
+    tft.setTextSize(3);
+    tft.setTextColor(TFT_BLACK);
+    
+    // Center "SHOOTER" on line 1
+    tft.setCursor(10, 100);
+    tft.println("SHOOTER");
+    
+    // Center "READY" on line 2
+    tft.setCursor(30, 140);
+    tft.println("READY");
+    
+    // Instructions at bottom
+    tft.setTextSize(2);
+    tft.setCursor(15, 240);
+    tft.println("Press to");
+    tft.setCursor(30, 265);
+    tft.println("START");
+    
+    // Force redraw flag reset so next state redraws completely
+    firstDraw = true;
+    lastDrawnSeconds = -1;
+    lastDisplayedAngle = 999;
+    lastStatusColor = 0xFFFF;
 }
