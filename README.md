@@ -16,9 +16,8 @@ Professional shot timer for PRS/NRL/DMR competitions.
 - Phase 2
   - Integrate EC11 click rotory encoder.
   - **Countdown timer** with adjustable par time presets (60/90/120/150/180s)
-  - Consider adding "trainer" mode where when selected a random count down timer for start of part time.
 - Phase 2.5
-  - Possible integration of beeper/buzzer/speaker TBD
+  - Possible integration of beeper/buzzer/speaker 
 - Phase 3
   - Integrate SPH0645 Digital microphone for shot and RO beeper detection.
   - Set up data logging (SD card?) for mic and IMU recording for offline testing of code.
@@ -27,6 +26,8 @@ Professional shot timer for PRS/NRL/DMR competitions.
   - **Dual-sensor shot detection** (accelerometer + microphone)
   - **Wireless start button** using ESP-NOW
 
+- Optional development
+    - Consider adding "trainer" mode where when selected a random count down timer for start of part time.
 
 
 ## Hardware
@@ -34,14 +35,14 @@ Professional shot timer for PRS/NRL/DMR competitions.
 - ESP32-S3 with 1.9" color LCD (170x320) non touch
   -   https://www.waveshare.com/product/arduino/boards-kits/esp32-s3/esp32-s3-lcd-1.9.htm
 - QMI8658 6-axis IMU
-- I2S MEMS microphone (SPH0645)
-- EC11 rotary encoder with push button
+- I2S MEMS microphone (SPH0645) (https://www.amazon.com/dp/B0BBLW362R?ref=ppx_yo2ov_dt_b_fed_asin_title)
+- EC11 rotary encoder with push button (https://www.amazon.com/dp/B07D3D64X7?ref=ppx_yo2ov_dt_b_fed_asin_title)
   - Integrated, connect pins as follows:
   - GPIO 16    // Encoder A
   - GPIO 17    // Encoder B
   - GPIO 18    // Push button
   - GND        // GND PINS
-- Piezo buzzer (85+ dB) (PN TBD)
+- Piezo buzzer (85+ dB) (https://www.amazon.com/dp/B0DHGP95K4?ref=ppx_yo2ov_dt_b_fed_asin_title&th=1)
 - MicroSD card slot
 - Wireless remote button (TBD but leaning toward ESP32-C3 based)
 
@@ -50,7 +51,8 @@ Professional shot timer for PRS/NRL/DMR competitions.
  **Work in Progress** 
 
 Currently in active development.
-Working on Phase 1
+Phase 2.5 published. Trainer mode note yet integrated.
+Working on Phase 3
 
 ## Getting Started
 
@@ -75,6 +77,7 @@ Click Upload (→) button in bottom toolbar.
 - [x] Project setup
 - [x] Display driver implementation
 - [x] IMU level indicator
+- [x] Buzzer integration
 - [ ] I2S microphone integration
 - [ ] Shot detection algorithm
 - [x] Countdown timer logic
