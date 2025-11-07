@@ -5,7 +5,7 @@ Professional shot timer for PRS/NRL/DMR competitions.
  **Work in Progress** 
 
 Currently in active development.
-Phase 2.5 published. Trainer mode note yet integrated.
+Phase 2.5 published. Trainer mode not yet integrated.
 Working on Phase 3
 
 ## Features
