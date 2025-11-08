@@ -9,9 +9,9 @@ This document describes how to wire the SPH0645LM4H I2S MEMS microphone to the E
 |----------------|---------------|-------------|
 | 3V | 3.3V | Power supply |
 | GND | GND | Ground |
-| BCLK | GPIO 42 | Bit clock (I2S_BCLK) |
-| DOUT | GPIO 44 | Data output (I2S_DIN) |
-| LRCL | GPIO 43 | Left/Right clock / Word Select (I2S_WS) |
+| BCLK | GPIO 6  | Bit clock (I2S_BCLK) (BCLK)|
+| DOUT | GPIO 5  | Data output (I2S_DIN) (DOUT)|
+| LRCL | GPIO 33 | Left/Right clock / Word Select (I2S_WS) (LRCL)|
 | SEL | GND or 3V | Channel select: GND=Left, 3V=Right |
 
 ### Notes:

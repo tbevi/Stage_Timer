@@ -10,8 +10,7 @@
 #include "timer.h"
 #include "menu_system.h"
 #include "display_manager.h"
-#include "buzzer.h"
-#include "mic_detector.h"
+#include "buzzer.h"  // <-- Add this
 #include <SensorQMI8658.hpp>
 
 #define USBSerial Serial
@@ -47,14 +46,7 @@ void setup() {
     USBSerial.println("RGB LED: OK!");
 
     // Initialize Buzzer
-    buzzer.begin();
-
-    // Initialize Microphone
-    USBSerial.println("Initializing microphone...");
-    if (!micDetector.begin()) {
-        USBSerial.println("WARNING: Microphone initialization failed!");
-        USBSerial.println("Manual timer start will still work.");
-    }
+    buzzer.begin();  // <-- Add this
 
     // Initialize Display
     USBSerial.println("Initializing display...");
@@ -141,14 +133,7 @@ void loop() {
     // Update modules
     levelMonitor.update();
     timer.update();
-    buzzer.update();
-
-    // Check for beep detection in READY state
-    if (timer.getState() == TIMER_READY && micDetector.update()) {
-        // Beep detected! Auto-start timer
-        USBSerial.println("Beep detected - auto-starting timer!");
-        timer.start();
-    }
+    buzzer.update();  // <-- Add this
     
     // Handle encoder button
     static bool lastButtonState = HIGH;
@@ -167,7 +152,6 @@ void loop() {
         if (millis() - buttonPressStart > 1000) {
             longPressDetected = true;
             timer.setReady();
-            micDetector.startListening();  // Start listening for beep
             leds[0] = CRGB::Yellow;
             FastLED.show();
         }
@@ -179,10 +163,8 @@ void loop() {
             // Short press
             if (!menu.isInMenu()) {
                 if (timer.getState() == TIMER_READY) {
-                    micDetector.stopListening();  // Stop listening when manually starting
                     timer.start();
                 } else if (timer.getState() == TIMER_RUNNING || timer.getState() == TIMER_FINISHED) {
-                    micDetector.stopListening();  // Ensure mic is stopped
                     timer.reset();
                 } else {
                     // Enter menu

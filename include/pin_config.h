@@ -37,12 +37,12 @@
 #define ENCODER_SW    18    // Push button
 
 // ===== BUZZER =====
-#define BUZZER_PIN    1
+#define BUZZER_PIN    45
 
 // ===== I2S MICROPHONE (SPH0645LM4H) =====
-#define I2S_BCLK      42    // Bit clock
-#define I2S_WS        43    // Word select (LRCL)
-#define I2S_DIN       44    // Data in (connects to mic DOUT)
+#define I2S_BCLK      21     // Bit clock
+#define I2S_WS        42    // Word select (LRCL)
+#define I2S_DIN       38     // Data in (connects to mic DOUT)
 // Note: SEL pin on mic should be connected to GND (left) or 3V (right)
 
 #endif // PIN_CONFIG_H

@@ -8,7 +8,7 @@ MicDetector micDetector;
 MicDetector::MicDetector()
     : listening(false)
     , lastMagnitude(0.0)
-    , detectionThreshold(5000.0)
+    , detectionThreshold(1500.0)
     , coeff(0.0)
 {
 }
