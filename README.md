@@ -5,7 +5,7 @@ Professional shot timer for PRS/NRL/DMR competitions.
  **Work in Progress** 
 
 Currently in active development.
-Phase 2.5 published. Trainer mode not yet integrated.
+Phase 3 published. Trainer mode not yet integrated. SD Card Logging or any kind of logging not integrated
 Working on Phase 3
 
 ## KNOWN BUGS
@@ -14,6 +14,8 @@ Working on Phase 3
 - Screen brightness setting not working
 - LED sticks red when timer ends until you enter and exit menu
 - Beeps could use tweeking
+- Microphone sensativity adjustment may not be working
+- Microphone may suffer from false positives when triggering from shooter ready mode.
                                                                            
 ## Features
 
@@ -31,14 +33,21 @@ Working on Phase 3
   - Integrate SPH0645 Digital microphone for shot and RO beeper detection.
   - Set up data logging (SD card?) for mic and IMU recording for offline testing of code.
   - **RO timer sync** via acoustic beep detection
-- Phase 3.5
+  - Long hold boot button to activate microphone diagnostic view
+- Future possible features
   - **Dual-sensor shot detection** (accelerometer + microphone)
   - **Wireless start button** using ESP-NOW
+  - Setting to dissable mic
 
 - Optional development
     - Consider adding "trainer" mode where when selected a random count down timer for start of part time.
+    - Count shots and include shots remaining bar
+    - Battery bar
+    - Use gyro or something else to prevent left right movement form affecting level.
 
-
+- To Do
+  - Upload pin diagrams
+    
 ## Hardware
 
 - ESP32-S3 with 1.9" color LCD (170x320) non touch
@@ -79,7 +88,7 @@ Click Upload (→) button in bottom toolbar.
 - [x] Display driver implementation
 - [x] IMU level indicator
 - [x] Buzzer integration
-- [ ] I2S microphone integration
+- [x] I2S microphone integration
 - [ ] Shot detection algorithm
 - [x] Countdown timer logic
 - [ ] SD card recording
