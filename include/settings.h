@@ -21,6 +21,9 @@ public:
     
     // Buzzer settings
     int buzzerVolume;
+    
+    // Microphone settings
+    float micThreshold;
 
     // Calibration data
     struct {

@@ -11,6 +11,8 @@ enum MenuState {
     MENU_LEVEL_SUBMENU,
     MENU_DISPLAY_SUBMENU,
     MENU_TIMER_SUBMENU,
+    MENU_MIC_SUBMENU,           // NEW: Microphone submenu
+    MIC_DIAGNOSTIC_MODE,        // NEW: Real-time mic monitor
     ADJUSTING_VALUE
 };
 
@@ -24,6 +26,7 @@ public:
     
     MenuState getState() const { return currentMenu; }
     bool isInMenu() const { return currentMenu != MAIN_DISPLAY; }
+    bool isInMicDiagnostic() const { return currentMenu == MIC_DIAGNOSTIC_MODE; }
     
 private:
     LGFX* tft;
@@ -34,6 +37,7 @@ private:
     int selectedLevelItem;
     int selectedTimerItem;
     int selectedDisplayItem;
+    int selectedMicItem;        // NEW: Track microphone menu selection
     
     // Value adjustment
     float* adjustingFloatValue;
@@ -44,6 +48,7 @@ private:
     void drawLevelSubmenu();
     void drawTimerSubmenu();
     void drawDisplaySubmenu();
+    void drawMicSubmenu();      // NEW: Draw microphone menu
     void drawValueAdjustment(const char* label, float value, const char* unit);
     void drawValueAdjustment(const char* label, int value, const char* unit);
     
@@ -52,6 +57,7 @@ private:
     void executeLevelMenuItem(int item);
     void executeTimerMenuItem(int item);
     void executeDisplayMenuItem(int item);
+    void executeMicMenuItem(int item);  // NEW: Execute mic menu items
 };
 
 extern MenuSystem menu;

@@ -39,7 +39,11 @@ public:
     void drawTimerDisplay(int remainingSeconds, float percentage, uint16_t timerColor, const char* stateText);
     
     // Full screen displays
-    void drawShooterReady();  // <-- Add this line
+    void drawShooterReady();
+    
+    // Microphone diagnostic display
+    void drawMicDiagnostics(float magnitude, float threshold, float noiseFloor, 
+                           float peakMag, float avgMag, int detections);
     
     // Helper functions
     void drawProgressBar(int x, int y, int width, int height, float percentage, uint16_t color);

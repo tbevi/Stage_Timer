@@ -13,7 +13,8 @@ Settings::Settings() {
     parTimeSeconds = 60;
     yellowWarningSeconds = 30;
     redWarningSeconds = 10;
-    buzzerVolume = 50; 
+    buzzerVolume = 50;
+    micThreshold = 1500.0;  // Default threshold for beep detection
 
     gravity.x = 0;
     gravity.y = 0;
@@ -35,7 +36,8 @@ void Settings::load() {
     yellowWarningSeconds = preferences.getInt("yellow_warn", 30);
     redWarningSeconds = preferences.getInt("red_warn", 10);
   
-    buzzerVolume = preferences.getInt("buzzer_vol", 50);    
+    buzzerVolume = preferences.getInt("buzzer_vol", 50);
+    micThreshold = preferences.getFloat("mic_thresh", 1500.0);
     
     gravity.isCalibrated = preferences.getBool("calibrated", false);
     if (gravity.isCalibrated) {
@@ -64,7 +66,8 @@ void Settings::save() {
     preferences.putInt("yellow_warn", yellowWarningSeconds);
     preferences.putInt("red_warn", redWarningSeconds);
     
-    preferences.putInt("buzzer_vol", buzzerVolume); 
+    preferences.putInt("buzzer_vol", buzzerVolume);
+    preferences.putFloat("mic_thresh", micThreshold);
 
     preferences.end();
     

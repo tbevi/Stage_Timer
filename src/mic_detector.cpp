@@ -7,17 +7,26 @@ MicDetector micDetector;
 
 MicDetector::MicDetector()
     : listening(false)
+    , diagnosticMode(false)
     , lastMagnitude(0.0)
     , detectionThreshold(1500.0)
-    , coeff(0.0)
+    , detectedFrequency(0.0)
+    , snrThreshold(2.0)  // Signal must be 2x noise floor
+    , noiseFloor(0.0)
+    , peakMagnitude(0.0)
+    , avgMagnitude(0.0)
+    , detectionCount(0)
+    , statsStartTime(0)
+    , sampleCount(0)
+    , magnitudeSum(0.0)
 {
 }
 
 bool MicDetector::begin() {
     Serial.println("Initializing I2S microphone...");
 
-    // Calculate Goertzel coefficient for target frequency
-    calculateCoefficient();
+    // Calculate Goertzel coefficients for all target frequencies
+    calculateCoefficients();
 
     // I2S configuration for SPH0645LM4H
     i2s_config_t i2s_config = {
@@ -59,24 +68,77 @@ bool MicDetector::begin() {
     // Start I2S
     i2s_start(I2S_PORT);
 
+    // Initialize noise floor estimation
+    estimateNoiseFloor();
+
     Serial.println("I2S Microphone: OK!");
-    Serial.printf("Listening for %.0f Hz beep (threshold: %.1f)\n",
-                  TARGET_FREQ, detectionThreshold);
+    Serial.printf("Detecting beeps from %.0fHz to %.0fHz\n", MIN_FREQ, MAX_FREQ);
+    Serial.printf("Noise floor: %.1f, Detection threshold: %.1f\n", 
+                  noiseFloor, detectionThreshold);
 
     return true;
 }
 
-void MicDetector::calculateCoefficient() {
-    // Goertzel coefficient calculation
-    // coeff = 2 * cos(2 * π * target_freq / sample_rate)
-    float normalizedFreq = TARGET_FREQ / SAMPLE_RATE;
-    coeff = 2.0 * cos(2.0 * PI * normalizedFreq);
+void MicDetector::calculateCoefficients() {
+    // Calculate Goertzel coefficients for multiple frequencies
+    // We'll check every 100Hz from 1400Hz to 2300Hz
+    int freqIndex = 0;
+    for (float freq = MIN_FREQ; freq <= MAX_FREQ; freq += FREQ_STEP) {
+        float normalizedFreq = freq / SAMPLE_RATE;
+        coefficients[freqIndex] = 2.0 * cos(2.0 * PI * normalizedFreq);
+        targetFrequencies[freqIndex] = freq;
+        freqIndex++;
+        if (freqIndex >= MAX_FREQ_BINS) break;
+    }
+    numFrequencies = freqIndex;
+    
+    Serial.printf("Monitoring %d frequencies\n", numFrequencies);
+}
+
+void MicDetector::estimateNoiseFloor() {
+    Serial.println("Estimating noise floor...");
+    
+    float sumMagnitude = 0.0;
+    int samples = 0;
+    const int calibrationTime = 500; // 500ms calibration
+    unsigned long startTime = millis();
+    
+    while (millis() - startTime < calibrationTime) {
+        size_t bytesRead = 0;
+        esp_err_t err = i2s_read(I2S_PORT, audioBuffer, sizeof(audioBuffer),
+                                 &bytesRead, 10);  // 10ms timeout
+        
+        if (err == ESP_OK && bytesRead > 0) {
+            int samplesRead = bytesRead / sizeof(int32_t);
+            
+            // Process with middle frequency for noise estimation
+            float magnitude = processBlock(audioBuffer, samplesRead, 
+                                          coefficients[numFrequencies/2]);
+            sumMagnitude += magnitude;
+            samples++;
+        }
+    }
+    
+    if (samples > 0) {
+        noiseFloor = sumMagnitude / samples;
+        // Add 20% margin to noise floor
+        noiseFloor *= 1.2;
+    } else {
+        noiseFloor = 100.0; // Default if calibration fails
+    }
+    
+    Serial.printf("Noise floor calibrated: %.1f\n", noiseFloor);
 }
 
 void MicDetector::startListening() {
     if (!listening) {
         listening = true;
         lastMagnitude = 0.0;
+        detectedFrequency = 0.0;
+        
+        // Re-estimate noise floor for current conditions
+        estimateNoiseFloor();
+        
         Serial.println("Mic: Listening for beep...");
     }
 }
@@ -89,7 +151,7 @@ void MicDetector::stopListening() {
 }
 
 bool MicDetector::update() {
-    if (!listening) {
+    if (!listening && !diagnosticMode) {
         return false;
     }
 
@@ -104,13 +166,27 @@ bool MicDetector::update() {
 
     int samplesRead = bytesRead / sizeof(int32_t);
 
-    // Process block with Goertzel algorithm
-    float magnitude = processBlock(audioBuffer, samplesRead);
+    // Process block with multiple Goertzel filters
+    float magnitude = processMultiFrequency(audioBuffer, samplesRead);
     lastMagnitude = magnitude;
 
-    // Check if magnitude exceeds threshold
-    if (magnitude > detectionThreshold) {
-        Serial.printf("BEEP DETECTED! Magnitude: %.1f\n", magnitude);
+    // Detection logic: magnitude threshold AND signal-to-noise ratio
+    float snr = (noiseFloor > 0) ? (magnitude / noiseFloor) : 0;
+    
+    // In diagnostic mode, don't auto-stop
+    if (diagnosticMode) {
+        // Update peak tracking
+        if (magnitude > peakMagnitude) {
+            peakMagnitude = magnitude;
+        }
+        return false;  // Never return true in diagnostic mode
+    }
+    
+    // Check if we have a valid beep detection (normal listening mode)
+    if (magnitude > detectionThreshold && snr > snrThreshold) {
+        Serial.printf("BEEP DETECTED! Freq: %.0fHz, Mag: %.1f, SNR: %.2f\n",
+                     detectedFrequency, magnitude, snr);
+        detectionCount++;
         stopListening();  // Stop after detection
         return true;
     }
@@ -118,10 +194,107 @@ bool MicDetector::update() {
     return false;
 }
 
-float MicDetector::processBlock(int32_t* samples, int numSamples) {
-    // Goertzel algorithm implementation
-    // Detects the magnitude of a specific frequency in a signal
+float MicDetector::updateDiagnostic() {
+    // Read audio samples from I2S
+    size_t bytesRead = 0;
+    esp_err_t err = i2s_read(I2S_PORT, audioBuffer, sizeof(audioBuffer),
+                             &bytesRead, 0);  // Non-blocking read
 
+    if (err != ESP_OK || bytesRead == 0) {
+        return lastMagnitude;  // Return last value if no new data
+    }
+
+    int samplesRead = bytesRead / sizeof(int32_t);
+
+    // Process block with multiple frequencies
+    float magnitude = processMultiFrequency(audioBuffer, samplesRead);
+    lastMagnitude = magnitude;
+    
+    // Update statistics
+    sampleCount++;
+    magnitudeSum += magnitude;
+    avgMagnitude = magnitudeSum / sampleCount;
+    
+    // Update peak
+    if (magnitude > peakMagnitude) {
+        peakMagnitude = magnitude;
+    }
+    
+    // Update noise floor (running minimum with slow decay)
+    if (noiseFloor == 0.0) {
+        noiseFloor = magnitude;
+    } else {
+        noiseFloor = noiseFloor * 0.999 + magnitude * 0.001;
+        if (magnitude < noiseFloor) {
+            noiseFloor = magnitude;
+        }
+    }
+    
+    // Count detections above threshold
+    if (magnitude > detectionThreshold) {
+        // Only count if it's been at least 100ms since we started tracking
+        if (millis() - statsStartTime > 100) {
+            detectionCount++;
+        }
+    }
+    
+    return magnitude;
+}
+
+void MicDetector::resetStats() {
+    noiseFloor = 0.0;
+    peakMagnitude = 0.0;
+    avgMagnitude = 0.0;
+    detectionCount = 0;
+    statsStartTime = millis();
+    sampleCount = 0;
+    magnitudeSum = 0.0;
+    detectedFrequency = 0.0;
+    Serial.println("Mic stats reset");
+}
+
+MicStats MicDetector::getStats() const {
+    MicStats stats;
+    stats.currentMagnitude = lastMagnitude;
+    stats.peakMagnitude = peakMagnitude;
+    stats.noiseFloor = noiseFloor;
+    stats.snr = (noiseFloor > 0) ? (lastMagnitude / noiseFloor) : 0;
+    stats.detectedFrequency = detectedFrequency;
+    stats.threshold = detectionThreshold;
+    stats.snrThreshold = snrThreshold;
+    return stats;
+}
+
+void MicDetector::startDiagnostic() {
+    diagnosticMode = true;
+    listening = true;  // Enable audio processing
+    resetStats();
+    Serial.println("=== MIC DIAGNOSTIC MODE ===");
+    Serial.println("Monitoring frequencies 1400-2300Hz");
+    Serial.println("Watch for peaks when beeper sounds");
+}
+
+void MicDetector::stopDiagnostic() {
+    diagnosticMode = false;
+    listening = false;
+    Serial.println("=== DIAGNOSTIC MODE STOPPED ===");
+    Serial.printf("Peak detected: %.1f @ %.0fHz\n", peakMagnitude, detectedFrequency);
+    Serial.printf("Current threshold: %.1f, SNR required: %.1f\n", 
+                  detectionThreshold, snrThreshold);
+}
+
+void MicDetector::adjustThreshold(float newThreshold) {
+    detectionThreshold = constrain(newThreshold, 100.0, 10000.0);
+    Serial.printf("Detection threshold set to: %.1f\n", detectionThreshold);
+}
+
+void MicDetector::adjustSNRThreshold(float newSNR) {
+    snrThreshold = constrain(newSNR, 1.0, 10.0);
+    Serial.printf("SNR threshold set to: %.1f\n", snrThreshold);
+}
+
+float MicDetector::processBlock(int32_t* samples, int numSamples, float coeff) {
+    // Goertzel algorithm implementation
     float q0 = 0.0;
     float q1 = 0.0;
     float q2 = 0.0;
@@ -138,13 +311,30 @@ float MicDetector::processBlock(int32_t* samples, int numSamples) {
     }
 
     // Calculate magnitude
-    // magnitude = sqrt(q1^2 + q2^2 - q1*q2*coeff)
     float real = q1 - q2 * coeff * 0.5;
-    float imag = q2 * sin(2.0 * PI * TARGET_FREQ / SAMPLE_RATE);
+    float imag = q2 * sin(2.0 * PI / numSamples);  // Simplified for efficiency
     float magnitude = sqrt(real * real + imag * imag);
 
     // Scale magnitude
     magnitude *= numSamples;
 
     return magnitude;
+}
+
+float MicDetector::processMultiFrequency(int32_t* samples, int numSamples) {
+    float maxMagnitude = 0.0;
+    float maxFrequency = 0.0;
+    
+    // Process with all frequency filters
+    for (int i = 0; i < numFrequencies; i++) {
+        float magnitude = processBlock(samples, numSamples, coefficients[i]);
+        
+        if (magnitude > maxMagnitude) {
+            maxMagnitude = magnitude;
+            maxFrequency = targetFrequencies[i];
+        }
+    }
+    
+    detectedFrequency = maxFrequency;
+    return maxMagnitude;
 }

@@ -4,6 +4,7 @@
 #include "display_manager.h"
 #include <FastLED.h>
 #include "buzzer.h"
+#include "mic_detector.h" 
 
 extern CRGB leds[];
 
@@ -13,6 +14,7 @@ enum TopMenuItem {
     TOP_LEVEL,
     TOP_TIMER,
     TOP_DISPLAY,
+    TOP_MICROPHONE,  
     TOP_EXIT,
     TOP_ITEM_COUNT
 };
@@ -41,9 +43,17 @@ enum DisplaySubItem {
     DISPLAY_ITEM_COUNT
 };
 
+enum MicSubItem {
+    MIC_MONITOR,
+    MIC_THRESHOLD,
+    MIC_BACK,
+    MIC_ITEM_COUNT
+};
+
 MenuSystem::MenuSystem() {
     currentMenu = MAIN_DISPLAY;
     selectedTopItem = 0;
+    selectedMicItem = 0;
     selectedLevelItem = 0;
     selectedTimerItem = 0;
     selectedDisplayItem = 0;
@@ -74,7 +84,14 @@ void MenuSystem::handleButton() {
         executeTimerMenuItem(selectedTimerItem);
     } else if (currentMenu == MENU_DISPLAY_SUBMENU) {
         executeDisplayMenuItem(selectedDisplayItem);
+        } else if (currentMenu == MENU_MIC_SUBMENU) {
+        executeMicMenuItem(selectedMicItem);
+    } else if (currentMenu == MIC_DIAGNOSTIC_MODE) {
+        // Exit diagnostic mode
+        currentMenu = MENU_MIC_SUBMENU;
+        drawMicSubmenu();
     } else if (currentMenu == ADJUSTING_VALUE) {
+
         // Save and return
         if (adjustingFloatValue != nullptr) {
             if (adjustingFloatValue == &settings.tolerance) {
@@ -83,6 +100,10 @@ void MenuSystem::handleButton() {
             } else if (adjustingFloatValue == &settings.hysteresis) {
                 currentMenu = MENU_LEVEL_SUBMENU;
                 drawLevelSubmenu();
+            } else if (adjustingFloatValue == &settings.micThreshold) {  // ADD THIS
+                micDetector.setThreshold(settings.micThreshold);
+                currentMenu = MENU_MIC_SUBMENU;
+                drawMicSubmenu();
             }
             adjustingFloatValue = nullptr;
         } else if (adjustingIntValue != nullptr) {
@@ -128,6 +149,17 @@ void MenuSystem::handleRotation(int delta) {
         if (selectedDisplayItem < 0) selectedDisplayItem = DISPLAY_ITEM_COUNT - 1;
         if (selectedDisplayItem >= DISPLAY_ITEM_COUNT) selectedDisplayItem = 0;
         drawDisplaySubmenu();
+        } else if (currentMenu == MENU_MIC_SUBMENU) {
+        selectedMicItem += delta;
+        if (selectedMicItem < 0) selectedMicItem = MIC_ITEM_COUNT - 1;
+        if (selectedMicItem >= MIC_ITEM_COUNT) selectedMicItem = 0;
+        drawMicSubmenu();
+    } else if (currentMenu == MIC_DIAGNOSTIC_MODE) {
+        // In diagnostic mode, adjust threshold with encoder
+        int newPos = encoder->getPosition();
+        settings.micThreshold = newPos * 50;
+        settings.micThreshold = constrain(settings.micThreshold, 100.0, 10000.0);
+        // Don't redraw here, main loop handles it
     } else if (currentMenu == ADJUSTING_VALUE) {
         int newPos = encoder->getPosition();
         
@@ -186,7 +218,7 @@ void MenuSystem::drawTopMenu() {
     tft->setCursor(25, 15);
     tft->println("SETTINGS");
     
-    const char* menuItems[] = {"Level", "Timer", "Display", "Exit"};
+    const char* menuItems[] = {"Level", "Timer", "Display", "Microphone", "Exit"};
     int startY = 60;
     int boxHeight = 45;
     int spacing = 8;
@@ -438,6 +470,12 @@ void MenuSystem::executeTopMenuItem(int item) {
             encoder->setPosition(0);
             drawDisplaySubmenu();
             break;
+        case TOP_MICROPHONE:  // ADD THIS CASE
+            currentMenu = MENU_MIC_SUBMENU;
+            selectedMicItem = 0;
+            encoder->setPosition(0);
+            drawMicSubmenu();
+            break;
         case TOP_EXIT:
             settings.save();
             currentMenu = MAIN_DISPLAY;
@@ -519,7 +557,71 @@ void MenuSystem::executeTimerMenuItem(int item) {
             break;
     }
 }
+void MenuSystem::drawMicSubmenu() {
+    tft->fillScreen(TFT_BLACK);
+    tft->setTextSize(2);
+    tft->setTextColor(TFT_WHITE);
+    tft->setCursor(5, 10);
+    tft->println("< MICROPHONE");
+    
+    const char* menuItems[] = {"Monitor", "Threshold", "Back"};
+    int startY = 70;
+    int boxHeight = 60;
+    int spacing = 10;
+    
+    for (int i = 0; i < MIC_ITEM_COUNT; i++) {
+        int y = startY + (i * (boxHeight + spacing));
+        
+        if (i == selectedMicItem) {
+            tft->fillRect(5, y, 160, boxHeight, TFT_BLUE);
+            tft->setTextColor(TFT_WHITE);
+        } else {
+            tft->drawRect(5, y, 160, boxHeight, TFT_DARKGREY);
+            tft->setTextColor(TFT_LIGHTGREY);
+        }
+        
+        tft->setTextSize(2);
+        tft->setCursor(10, y + 10);
+        tft->println(menuItems[i]);
+        
+        if (i == MIC_THRESHOLD) {
+            tft->setTextSize(2);
+            tft->setCursor(10, y + 35);
+            tft->printf("%.0f", settings.micThreshold);
+        }
+    }
+    
+    tft->setTextSize(1);
+    tft->setTextColor(TFT_DARKGREY);
+    tft->setCursor(15, 290);
+    tft->println("Turn: Select");
+    tft->setCursor(15, 305);
+    tft->println("Press: Confirm");
+}
 
+void MenuSystem::executeMicMenuItem(int item) {
+    switch(item) {
+        case MIC_MONITOR:
+            // Enter real-time diagnostic mode
+            currentMenu = MIC_DIAGNOSTIC_MODE;
+            micDetector.resetStats();
+            encoder->setPosition((int)(settings.micThreshold / 50));
+            Serial.println("Entered mic diagnostic mode");
+            break;
+        case MIC_THRESHOLD:
+            currentMenu = ADJUSTING_VALUE;
+            adjustingFloatValue = &settings.micThreshold;
+            encoder->setPosition((int)(settings.micThreshold / 50));
+            drawValueAdjustment("MIC THRESH", settings.micThreshold, "");
+            break;
+        case MIC_BACK:
+            currentMenu = MENU_TOP_LEVEL;
+            selectedTopItem = 3;  // Position on "Microphone"
+            encoder->setPosition(3);
+            drawTopMenu();
+            break;
+    }
+}
 void MenuSystem::executeDisplayMenuItem(int item) {
     switch(item) {
         case DISPLAY_BRIGHTNESS:
