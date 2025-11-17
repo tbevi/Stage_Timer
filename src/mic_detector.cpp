@@ -11,7 +11,7 @@ MicDetector::MicDetector()
     , lastMagnitude(0.0)
     , detectionThreshold(1500.0)
     , detectedFrequency(0.0)
-    , snrThreshold(2.0)  // Signal must be 2x noise floor
+    , snrThreshold(2.5)  // Signal must be 2.5x noise floor (increased from 2.0)
     , noiseFloor(0.0)
     , peakMagnitude(0.0)
     , avgMagnitude(0.0)
@@ -19,6 +19,8 @@ MicDetector::MicDetector()
     , statsStartTime(0)
     , sampleCount(0)
     , magnitudeSum(0.0)
+    , lastDetectionTime(0)
+    , detectionDebounceMs(500)  // 500ms debounce to prevent false positives
 {
 }
 
@@ -97,37 +99,37 @@ void MicDetector::calculateCoefficients() {
 
 void MicDetector::estimateNoiseFloor() {
     Serial.println("Estimating noise floor...");
-    
+
     float sumMagnitude = 0.0;
     int samples = 0;
-    const int calibrationTime = 500; // 500ms calibration
+    const int calibrationTime = 1000; // 1 second calibration (increased from 500ms)
     unsigned long startTime = millis();
-    
+
     while (millis() - startTime < calibrationTime) {
         size_t bytesRead = 0;
         esp_err_t err = i2s_read(I2S_PORT, audioBuffer, sizeof(audioBuffer),
                                  &bytesRead, 10);  // 10ms timeout
-        
+
         if (err == ESP_OK && bytesRead > 0) {
             int samplesRead = bytesRead / sizeof(int32_t);
-            
+
             // Process with middle frequency for noise estimation
-            float magnitude = processBlock(audioBuffer, samplesRead, 
+            float magnitude = processBlock(audioBuffer, samplesRead,
                                           coefficients[numFrequencies/2]);
             sumMagnitude += magnitude;
             samples++;
         }
     }
-    
+
     if (samples > 0) {
         noiseFloor = sumMagnitude / samples;
-        // Add 20% margin to noise floor
-        noiseFloor *= 1.2;
+        // Add 30% margin to noise floor (increased from 20%)
+        noiseFloor *= 1.3;
     } else {
         noiseFloor = 100.0; // Default if calibration fails
     }
-    
-    Serial.printf("Noise floor calibrated: %.1f\n", noiseFloor);
+
+    Serial.printf("Noise floor calibrated: %.1f (from %d samples)\n", noiseFloor, samples);
 }
 
 void MicDetector::startListening() {
@@ -183,12 +185,18 @@ bool MicDetector::update() {
     }
     
     // Check if we have a valid beep detection (normal listening mode)
+    // Add debouncing to prevent rapid false triggers
+    unsigned long now = millis();
     if (magnitude > detectionThreshold && snr > snrThreshold) {
-        Serial.printf("BEEP DETECTED! Freq: %.0fHz, Mag: %.1f, SNR: %.2f\n",
-                     detectedFrequency, magnitude, snr);
-        detectionCount++;
-        stopListening();  // Stop after detection
-        return true;
+        // Debounce: only detect if enough time has passed since last detection
+        if (now - lastDetectionTime > detectionDebounceMs) {
+            Serial.printf("BEEP DETECTED! Freq: %.0fHz, Mag: %.1f, SNR: %.2f\n",
+                         detectedFrequency, magnitude, snr);
+            detectionCount++;
+            lastDetectionTime = now;
+            stopListening();  // Stop after detection
+            return true;
+        }
     }
 
     return false;

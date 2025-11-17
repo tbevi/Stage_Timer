@@ -136,6 +136,10 @@ private:
     int sampleCount;
     float magnitudeSum;
 
+    // Debouncing to prevent false positives
+    unsigned long lastDetectionTime;
+    unsigned long detectionDebounceMs;
+
     // I2S configuration
     static constexpr i2s_port_t I2S_PORT = I2S_NUM_0;
     static constexpr int SAMPLE_RATE = 16000;  // 16kHz sample rate

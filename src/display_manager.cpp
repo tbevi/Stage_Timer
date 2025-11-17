@@ -46,9 +46,9 @@ LGFX::LGFX(void) {
         auto cfg = _light_instance.config();
         cfg.pin_bl = LCD_BL;
         cfg.invert = false;
-        cfg.freq = 44100;
-        cfg.pwm_channel = 0;
-        
+        cfg.freq = 12000;  // 12kHz PWM frequency for backlight
+        cfg.pwm_channel = 1;  // Channel 1 (buzzer uses 2, avoid conflicts)
+
         _light_instance.config(cfg);
         _panel_instance.setLight(&_light_instance);
     }
@@ -187,7 +187,7 @@ void DisplayManager::drawTimerDisplay(int remainingSeconds, float percentage, ui
         tft.setTextSize(1);
         tft.setTextColor(TFT_DARKGREY);
         tft.setCursor(10, 300);
-        tft.println("Stage Timer v3.0");
+        tft.println("Stage Timer v3.5");
         firstDraw = false;
     }
 }

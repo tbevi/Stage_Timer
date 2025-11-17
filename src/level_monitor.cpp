@@ -61,11 +61,16 @@ float LevelMonitor::calculateTiltAngle() {
 }
 
 void LevelMonitor::update() {
-    if (!qmi) return;
-    
+    // Safety check
+    if (!qmi) {
+        return;
+    }
+
     // Read sensor
     if (qmi->getDataReady()) {
         qmi->getAccelerometer(acc.x, acc.y, acc.z);
+    } else {
+        return;  // No new data available
     }
     
     // Calculate angles

@@ -34,8 +34,8 @@ void setup() {
     delay(2000);
     
     USBSerial.println("\n================================");
-    USBSerial.println("=== Stage Timer v3.2 ===");
-    USBSerial.println("=== Multi-Freq Detection ===");
+    USBSerial.println("=== Stage Timer v3.5 ===");
+    USBSerial.println("=== Optimized & Bug Fixed ===");
     USBSerial.println("================================");
 
     // Load settings from flash
@@ -57,6 +57,10 @@ void setup() {
     if (!micDetector.begin()) {
         USBSerial.println("WARNING: Microphone initialization failed!");
         USBSerial.println("Manual timer start will still work.");
+    } else {
+        // Apply saved threshold setting
+        micDetector.setThreshold(settings.micThreshold);
+        USBSerial.printf("Mic threshold set to: %.0f\n", settings.micThreshold);
     }
 
     // Initialize Display
@@ -423,14 +427,15 @@ void loop() {
                 lastTimerState = currentTimerState;
             }
             
-            // Update LED (unless timer finished)
-            if (timer.getState() != TIMER_FINISHED) {
-                leds[0] = levelMonitor.getLEDColor();
-                FastLED.show();
-            } else {
+            // Update LED based on timer state
+            if (timer.getState() == TIMER_FINISHED) {
                 leds[0] = CRGB::Red;
-                FastLED.show();
+            } else if (timer.getState() == TIMER_READY) {
+                leds[0] = CRGB::Yellow;
+            } else {
+                leds[0] = levelMonitor.getLEDColor();
             }
+            FastLED.show();
         }
     }
     

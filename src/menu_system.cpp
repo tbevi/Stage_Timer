@@ -64,6 +64,11 @@ MenuSystem::MenuSystem() {
 }
 
 void MenuSystem::begin(LGFX* tftPtr, RotaryEncoder* encoderPtr) {
+    // Safety checks
+    if (!tftPtr || !encoderPtr) {
+        Serial.println("ERROR: MenuSystem::begin() - null pointer provided!");
+        return;
+    }
     tft = tftPtr;
     encoder = encoderPtr;
 }

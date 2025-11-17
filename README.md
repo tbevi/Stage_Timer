@@ -2,20 +2,25 @@
 
 Professional shot timer for PRS/NRL/DMR competitions.
 ## STATUS
- **Work in Progress** 
+ **Work in Progress**
 
-Currently in active development.
+Currently in active development - Version 3.5
 Phase 3 published. Trainer mode not yet integrated. SD Card Logging or any kind of logging not integrated
-Working on Phase 3
 
-## KNOWN BUGS
+## RECENT IMPROVEMENTS (v3.5)
 
-- Buzzer volume adjustment not working
-- Screen brightness setting not working
-- LED sticks red when timer ends until you enter and exit menu
-- Beeps could use tweeking
-- Microphone sensativity adjustment may not be working
-- Microphone may suffer from false positives when triggering from shooter ready mode.
+✅ **Fixed: Buzzer volume adjustment** - Now properly applies volume settings (0-100%)
+✅ **Fixed: Screen brightness setting** - PWM channel conflict resolved
+✅ **Fixed: LED stuck red bug** - LED now properly resets when entering/exiting menu
+✅ **Improved: Beep patterns** - Yellow warning now plays 2 beeps, Red warning plays 3 beeps
+✅ **Fixed: Microphone sensitivity** - Saved threshold now properly loads on startup
+✅ **Reduced: False positives** - Improved noise floor estimation and added 500ms debouncing
+✅ **Code optimization** - Added safety checks and improved code quality
+
+## REMAINING ISSUES
+
+- Trainer mode not yet integrated
+- SD Card logging not implemented
                                                                            
 ## Features
 
