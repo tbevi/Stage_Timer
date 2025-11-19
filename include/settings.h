@@ -25,6 +25,10 @@ public:
     // Microphone settings
     float micThreshold;
 
+    // Power management settings
+    int sleepTimeoutSeconds;      // Inactivity timeout before sleep (0 = disabled)
+    int motionWakeThreshold;      // Motion sensitivity for wake-up (mg)
+
     // Calibration data
     struct {
         float x;

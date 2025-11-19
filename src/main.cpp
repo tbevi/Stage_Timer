@@ -12,6 +12,7 @@
 #include "display_manager.h"
 #include "buzzer.h"
 #include "mic_detector.h"
+#include "power_manager.h"
 #include <SensorQMI8658.hpp>
 
 #define USBSerial Serial
@@ -88,6 +89,16 @@ void setup() {
     qmi.enableAccelerometer();
     USBSerial.println("IMU: OK!");
 
+    // Initialize Power Manager
+    USBSerial.println("Initializing Power Manager...");
+    powerManager.begin(&qmi, leds);
+
+    // Check if we woke from sleep
+    if (powerManager.isWakeFromSleep()) {
+        USBSerial.println("Device woke from sleep!");
+        powerManager.restorePeripherals();
+    }
+
     // Initialize Level Monitor
     levelMonitor.begin(&qmi, leds);
 
@@ -138,10 +149,36 @@ void setup() {
     delay(1500);
     
     USBSerial.println("\n=== READY! ===\n");
-    USBSerial.println("TIP: Hold BOOT button for 2s to enter mic diagnostic mode");
+    USBSerial.println("TIPS:");
+    USBSerial.println("  - Hold BOOT button for 2s to enter mic diagnostic mode");
+    USBSerial.println("  - Hold BOOT + Encoder for 3s to manually enter sleep mode");
+    if (settings.sleepTimeoutSeconds > 0) {
+        USBSerial.print("  - Auto-sleep after ");
+        USBSerial.print(settings.sleepTimeoutSeconds);
+        USBSerial.println(" seconds of inactivity");
+    } else {
+        USBSerial.println("  - Auto-sleep disabled (set in settings)");
+    }
 }
 
 void loop() {
+    // Inactivity timeout for auto-sleep
+    static unsigned long lastActivityTime = millis();
+
+    // Check for sleep timeout (only when idle and sleep is enabled)
+    if (settings.sleepTimeoutSeconds > 0 &&
+        timer.getState() == TIMER_IDLE &&
+        !menu.isInMenu() &&
+        !micDiagnosticMode) {
+
+        unsigned long inactiveTime = (millis() - lastActivityTime) / 1000;
+        if (inactiveTime >= settings.sleepTimeoutSeconds) {
+            USBSerial.println("\nInactivity timeout - entering sleep mode");
+            powerManager.enterSleep();
+            // Never returns - device resets on wake
+        }
+    }
+
     // Check BOOT button for diagnostic mode
     static unsigned long bootButtonPressStart = 0;
     static bool bootButtonPressed = false;
@@ -151,18 +188,51 @@ void loop() {
     if (bootState == LOW && lastBootState == HIGH) {
         bootButtonPressStart = millis();
         bootButtonPressed = true;
+        lastActivityTime = millis();  // Reset inactivity timer
     }
     
+    // Check for manual sleep trigger (hold BOOT + Encoder button for 3 seconds)
+    bool encoderButtonState = digitalRead(ENCODER_SW);
+    static unsigned long bothButtonsHeldStart = 0;
+    static bool bothButtonsHeldDetected = false;
+
+    if (bootState == LOW && encoderButtonState == LOW && !menu.isInMenu()) {
+        if (bothButtonsHeldStart == 0) {
+            bothButtonsHeldStart = millis();
+        } else if (millis() - bothButtonsHeldStart > 3000 && !bothButtonsHeldDetected) {
+            bothButtonsHeldDetected = true;
+            USBSerial.println("\nManual sleep triggered (BOOT + Encoder held)");
+
+            // Show sleep screen
+            display.getTFT()->fillScreen(TFT_BLACK);
+            display.getTFT()->setTextColor(COLOR_CYAN);
+            display.getTFT()->setTextSize(2);
+            display.getTFT()->setCursor(30, 120);
+            display.getTFT()->println("SLEEPING...");
+            leds[0] = CRGB::Blue;
+            FastLED.show();
+            delay(1000);
+
+            powerManager.enterSleep();
+            // Never returns
+        }
+    } else {
+        bothButtonsHeldStart = 0;
+        bothButtonsHeldDetected = false;
+    }
+
     // 2-second hold for diagnostic mode
-    if (bootButtonPressed && bootState == LOW && 
-        millis() - bootButtonPressStart > 2000 && !menu.isInMenu()) {
-        
+    if (bootButtonPressed && bootState == LOW &&
+        millis() - bootButtonPressStart > 2000 && !menu.isInMenu() &&
+        encoderButtonState == HIGH) {  // Make sure encoder button is not pressed
+
         bootButtonPressed = false;
         
         if (!micDiagnosticMode) {
             // Enter diagnostic mode
             micDiagnosticMode = true;
             micDetector.startDiagnostic();
+            lastActivityTime = millis();  // Reset inactivity timer
             
             // Display diagnostic screen
             display.getTFT()->fillScreen(TFT_BLACK);
@@ -292,6 +362,7 @@ void loop() {
         // Beep detected! Auto-start timer
         USBSerial.println("Beep detected - auto-starting timer!");
         timer.start();
+        lastActivityTime = millis();  // Reset inactivity timer
     }
     
     // Handle encoder button
@@ -304,6 +375,7 @@ void loop() {
     if (buttonState == LOW && lastButtonState == HIGH) {
         buttonPressStart = millis();
         longPressDetected = false;
+        lastActivityTime = millis();  // Reset inactivity timer
     }
     
     // Long press detection (>1 second) - only in main display for timer
@@ -346,11 +418,12 @@ void loop() {
     
     if (newPos != lastEncoderPos) {
         int delta = newPos - lastEncoderPos;
-        
+        lastActivityTime = millis();  // Reset inactivity timer
+
         if (menu.isInMenu()) {
             menu.handleRotation(delta);
         }
-        
+
         lastEncoderPos = newPos;
     }
     

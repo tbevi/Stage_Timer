@@ -15,6 +15,8 @@ Settings::Settings() {
     redWarningSeconds = 10;
     buzzerVolume = 50;
     micThreshold = 1500.0;  // Default threshold for beep detection
+    sleepTimeoutSeconds = 300;  // Default: 5 minutes of inactivity
+    motionWakeThreshold = 200;  // Default: 200mg motion threshold
 
     gravity.x = 0;
     gravity.y = 0;
@@ -38,7 +40,9 @@ void Settings::load() {
   
     buzzerVolume = preferences.getInt("buzzer_vol", 50);
     micThreshold = preferences.getFloat("mic_thresh", 1500.0);
-    
+    sleepTimeoutSeconds = preferences.getInt("sleep_timeout", 300);
+    motionWakeThreshold = preferences.getInt("motion_thresh", 200);
+
     gravity.isCalibrated = preferences.getBool("calibrated", false);
     if (gravity.isCalibrated) {
         gravity.x = preferences.getFloat("grav_x", 0);
@@ -68,6 +72,8 @@ void Settings::save() {
     
     preferences.putInt("buzzer_vol", buzzerVolume);
     preferences.putFloat("mic_thresh", micThreshold);
+    preferences.putInt("sleep_timeout", sleepTimeoutSeconds);
+    preferences.putInt("motion_thresh", motionWakeThreshold);
 
     preferences.end();
     
