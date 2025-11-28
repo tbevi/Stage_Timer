@@ -24,6 +24,9 @@ public:
     
     // Microphone settings
     float micThreshold;
+    
+    // Battery settings
+    int autoSleepTimeout;  // seconds, 0 = disabled
 
     // Calibration data
     struct {

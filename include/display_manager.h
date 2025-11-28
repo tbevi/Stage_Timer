@@ -45,6 +45,9 @@ public:
     void drawMicDiagnostics(float magnitude, float threshold, float noiseFloor, 
                            float peakMag, float avgMag, int detections);
     
+    
+    // Battery indicator (top-right corner)
+    void drawBatteryIndicator(int percent, bool charging, uint16_t color);
     // Helper functions
     void drawProgressBar(int x, int y, int width, int height, float percentage, uint16_t color);
     

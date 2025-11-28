@@ -12,6 +12,7 @@
 #include "display_manager.h"
 #include "buzzer.h"
 #include "mic_detector.h"
+#include "battery_manager.h"
 #include <SensorQMI8658.hpp>
 
 #define USBSerial Serial
@@ -40,6 +41,12 @@ void setup() {
 
     // Load settings from flash
     settings.load();
+    
+    // Initialize Battery Manager
+    USBSerial.println("Initializing battery...");
+    battery.begin();
+    battery.setAutoSleep(settings.autoSleepTimeout);
+    USBSerial.println("Battery: OK!");
 
     // Initialize RGB LED
     USBSerial.println("Initializing RGB LED...");
@@ -142,6 +149,18 @@ void setup() {
 }
 
 void loop() {
+    // Update battery monitoring
+    static unsigned long lastBatteryUpdate = 0;
+    if (millis() - lastBatteryUpdate > 60000) {  // Update every minute
+        lastBatteryUpdate = millis();
+        battery.update();
+        
+        // Check for critical battery
+        if (battery.isCritical()) {
+            USBSerial.println("CRITICAL BATTERY!");
+        }
+    }
+
     // Check BOOT button for diagnostic mode
     static unsigned long bootButtonPressStart = 0;
     static bool bootButtonPressed = false;
@@ -337,6 +356,7 @@ void loop() {
                 menu.handleButton();
             }
         }
+            battery.resetInactivityTimer();
     }
     lastButtonState = buttonState;
     
@@ -352,6 +372,7 @@ void loop() {
         }
         
         lastEncoderPos = newPos;
+        battery.resetInactivityTimer();
     }
     
     // Update display if in main mode
@@ -420,6 +441,13 @@ void loop() {
                     timerStateText
                 );
                 
+                // Draw battery indicator
+                display.drawBatteryIndicator(
+                    battery.getPercentage(),
+                    battery.isCharging(),
+                    battery.getBatteryColor()
+                );
+                
                 lastTimerState = currentTimerState;
             }
             
@@ -432,6 +460,19 @@ void loop() {
                 FastLED.show();
             }
         }
+    }
+    
+    // Check for auto-sleep (only when safe to sleep)
+    if (battery.shouldSleep() && !menu.isInMenu() && 
+        timer.getState() != TIMER_RUNNING && timer.getState() != TIMER_READY) {
+        USBSerial.println("Auto-sleep: Entering deep sleep...");
+        display.getTFT()->fillScreen(TFT_BLACK);
+        display.getTFT()->setTextSize(2);
+        display.getTFT()->setTextColor(TFT_WHITE);
+        display.getTFT()->setCursor(20, 140);
+        display.getTFT()->println("SLEEPING...");
+        delay(500);
+        battery.enterDeepSleep();
     }
     
     delay(5);

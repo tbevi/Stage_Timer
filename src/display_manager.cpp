@@ -335,3 +335,39 @@ void DisplayManager::drawMicDiagnostics(float magnitude, float threshold, float 
     tft.setCursor(10, 300);
     tft.println("Press: Exit");
 }
+void DisplayManager::drawBatteryIndicator(int percent, bool charging, uint16_t color) {
+    // Draw battery icon in LOWER-RIGHT corner
+    int x = 135;  // Right side of 170px display
+    int y = 300;  // Bottom of 320px display (moved from top)
+    int width = 30;
+    int height = 14;
+    
+    // Battery outline
+    tft.drawRect(x, y, width, height, TFT_WHITE);
+    tft.drawRect(x + width, y + 4, 3, 6, TFT_WHITE);  // Battery terminal
+    
+    // Fill based on percentage
+    int fillWidth = (width - 4) * percent / 100;
+    if (fillWidth > 0) {
+        tft.fillRect(x + 2, y + 2, fillWidth, height - 4, color);
+    }
+    
+    // Clear empty portion
+    int emptyWidth = (width - 4) - fillWidth;
+    if (emptyWidth > 0) {
+        tft.fillRect(x + 2 + fillWidth, y + 2, emptyWidth, height - 4, TFT_BLACK);
+    }
+    
+    // Show percentage text (to the left of icon)
+    tft.setTextSize(1);
+    tft.setTextColor(TFT_WHITE);
+    tft.setCursor(x - 20, y + 3);
+    tft.printf("%d%%", percent);
+    
+    // Charging indicator
+    if (charging) {
+        tft.setTextColor(COLOR_GREEN);
+        tft.setCursor(x + 12, y + 3);
+        tft.print("~");  // Lightning symbol
+    }
+}
