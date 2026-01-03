@@ -22,7 +22,6 @@ enum TopMenuItem {
 enum LevelSubItem {
     LEVEL_CALIBRATE,
     LEVEL_TOLERANCE,
-    LEVEL_HYSTERESIS,
     LEVEL_BACK,
     LEVEL_ITEM_COUNT
 };
@@ -97,9 +96,6 @@ void MenuSystem::handleButton() {
             if (adjustingFloatValue == &settings.tolerance) {
                 currentMenu = MENU_LEVEL_SUBMENU;
                 drawLevelSubmenu();
-            } else if (adjustingFloatValue == &settings.hysteresis) {
-                currentMenu = MENU_LEVEL_SUBMENU;
-                drawLevelSubmenu();
             } else if (adjustingFloatValue == &settings.micThreshold) {  // ADD THIS
                 micDetector.setThreshold(settings.micThreshold);
                 currentMenu = MENU_MIC_SUBMENU;
@@ -168,10 +164,6 @@ void MenuSystem::handleRotation(int delta) {
                 *adjustingFloatValue = newPos * 0.1;
                 *adjustingFloatValue = constrain(*adjustingFloatValue, 0.1, 5.0);
                 drawValueAdjustment("TOLERANCE", *adjustingFloatValue, "deg");
-            } else if (adjustingFloatValue == &settings.hysteresis) {
-                *adjustingFloatValue = newPos * 0.01;
-                *adjustingFloatValue = constrain(*adjustingFloatValue, 0.01, 1.0);
-                drawValueAdjustment("HYSTERESIS", *adjustingFloatValue, "deg");
             }
         } else if (adjustingIntValue != nullptr) {
             if (adjustingIntValue == &settings.displayBrightness) {
@@ -254,7 +246,7 @@ void MenuSystem::drawLevelSubmenu() {
     tft->setCursor(5, 10);
     tft->println("< LEVEL");
     
-    const char* menuItems[] = {"Calibrate", "Tolerance", "Hysteresis", "Back"};
+    const char* menuItems[] = {"Calibrate", "Tolerance", "Back"};
     int startY = 50;
     int boxHeight = 50;
     int spacing = 8;
@@ -275,13 +267,16 @@ void MenuSystem::drawLevelSubmenu() {
         tft->println(menuItems[i]);
         
         if (i == LEVEL_TOLERANCE) {
+            tft->setTextSize(2);
             tft->setCursor(10, y + 27);
             tft->print(settings.tolerance, 1);
             tft->print(" deg");
-        } else if (i == LEVEL_HYSTERESIS) {
-            tft->setCursor(10, y + 27);
-            tft->print(settings.hysteresis, 2);
-            tft->print(" deg");
+            
+            // Show auto-calculated hysteresis in small gray text
+            tft->setTextSize(1);
+            tft->setTextColor(TFT_DARKGREY);
+            tft->setCursor(10, y + 43);
+            tft->printf("(Hyst: %.2f)", settings.tolerance * 0.1f);
         }
     }
     
@@ -513,12 +508,6 @@ void MenuSystem::executeLevelMenuItem(int item) {
             adjustingFloatValue = &settings.tolerance;
             encoder->setPosition((int)(settings.tolerance * 10));
             drawValueAdjustment("TOLERANCE", settings.tolerance, "deg");
-            break;
-        case LEVEL_HYSTERESIS:
-            currentMenu = ADJUSTING_VALUE;
-            adjustingFloatValue = &settings.hysteresis;
-            encoder->setPosition((int)(settings.hysteresis * 100));
-            drawValueAdjustment("HYSTERESIS", settings.hysteresis, "deg");
             break;
         case LEVEL_BACK:
             currentMenu = MENU_TOP_LEVEL;

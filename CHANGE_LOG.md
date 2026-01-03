@@ -1,105 +1,181 @@
-# Precision Rifle Competition Timer
+# Changelog
 
-Professional shot timer for PRS/NRL/DMR competitions.
-## STATUS
- **Work in Progress** 
+All notable changes to the Stage Timer project will be documented in this file.
 
-Currently in active development.
-Phase 3 published. Trainer mode not yet integrated. SD Card Logging or any kind of logging not integrated
-Working on Phase 3
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## KNOWN BUGS
+## [Unreleased]
 
-- Buzzer volume adjustment not working
-- Screen brightness setting not working
-- LED sticks red when timer ends until you enter and exit menu
-- Beeps could use tweeking
-- Microphone sensativity adjustment may not be working
-- Microphone may suffer from false positives when triggering from shooter ready mode.
-                                                                           
-## Features
+### Planned
+- Deep sleep mode for battery conservation
+- SD card logging for diagnostics
+- Wireless remote button (ESP-NOW)
+- Shot counter with remaining shots display
+- Battery level indicator
+- Trainer mode with random start delay
 
-- Phase 1:
-  - **Real-time level indicator** using IMU (unique feature!)
-- Phase 1.5:
-  - ~~Integrate gyro to avoid false level change readings due to left right movements~~
-  - Added filtering/hysterisis to help smoth out level reading.
-- Phase 2
-  - Integrate EC11 click rotory encoder.
-  - **Countdown timer** with adjustable par time presets (60/90/120/150/180s)
-- Phase 2.5
-  - Possible integration of beeper/buzzer/speaker 
-- Phase 3
-  - Integrate SPH0645 Digital microphone for shot and RO beeper detection.
-  - Set up data logging (SD card?) for mic and IMU recording for offline testing of code.
-  - **RO timer sync** via acoustic beep detection
-  - Long hold boot button to activate microphone diagnostic view
-- Future possible features
-  - **Dual-sensor shot detection** (accelerometer + microphone)
-  - **Wireless start button** using ESP-NOW
-  - Setting to dissable mic
+---
 
-- Optional development
-    - Consider adding "trainer" mode where when selected a random count down timer for start of part time.
-    - Count shots and include shots remaining bar
-    - Battery bar
-    - Use gyro or something else to prevent left right movement form affecting level.
+## [3.3.0] - 2025-01-03
 
-- To Do
-  - Upload pin diagrams
-    
-## Hardware
+### Added
+- **Gyroscope sensor fusion** for level detection
+  - 98% gyroscope, 2% accelerometer complementary filter
+  - Immunity to linear acceleration and vibration
+  - Smooth, stable level readings during movement
+- Automatic hysteresis calculation (10% of tolerance)
+- Version tracking system (version.h)
+- Changelog (this file)
 
-- ESP32-S3 with 1.9" color LCD (170x320) non touch
-  -   https://www.waveshare.com/product/arduino/boards-kits/esp32-s3/esp32-s3-lcd-1.9.htm
-- QMI8658 6-axis IMU
-- I2S MEMS microphone (SPH0645) (https://www.amazon.com/dp/B0BBLW362R?ref=ppx_yo2ov_dt_b_fed_asin_title)
-- EC11 rotary encoder with push button (https://www.amazon.com/dp/B07D3D64X7?ref=ppx_yo2ov_dt_b_fed_asin_title)
-  - Integrated, connect pins as follows:
-  - GPIO 16    // Encoder A
-  - GPIO 17    // Encoder B
-  - GPIO 18    // Push button
-  - GND        // GND PINS
-- Piezo buzzer (85+ dB) (https://www.amazon.com/dp/B0DHGP95K4?ref=ppx_yo2ov_dt_b_fed_asin_title&th=1)
-- MicroSD card slot
-- Wireless remote button (TBD but leaning toward ESP32-C3 based)
+### Changed
+- Level detection now uses both gyroscope and accelerometer
+- Hysteresis automatically scales with tolerance setting
+- Improved level stability during rifle movement
 
-## Getting Started
+### Removed
+- Manual hysteresis adjustment from menu
+  - Now auto-calculated, eliminating user configuration errors
+  - Reduces menu complexity
 
-### Requirements
+### Fixed
+- False level changes from shouldering rifle
+- Jittery readings from recoil and vibration
+- User confusion from manual hysteresis tuning
 
-- VS Code with PlatformIO
-- ESP32-S3 board support https://www.waveshare.com/product/arduino/boards-kits/esp32-s3/esp32-s3-lcd-1.9.htm
-- USB-C cable
+### Technical Details
+- Using QMI8658 gyroscope at 896.8 Hz ODR
+- Complementary filter implementation in level_monitor.cpp
+- Hysteresis calculation: `tolerance * 0.1f`
+- Business logic properly separated from settings storage
 
-### Build
-```bash
-git clone https://github.com/YOUR-USERNAME/precision-rifle-timer.git
-cd precision-rifle-timer
-```
+---
 
-Open in VS Code, PlatformIO will install dependencies automatically.
+## [3.2.0] - 2024-12-XX
 
-Click Upload (→) button in bottom toolbar.
+### Added
+- Multi-frequency microphone detection (1400-2300Hz range)
+- Microphone diagnostic mode (hold BOOT button for 2 seconds)
+- Real-time magnitude and SNR display in diagnostic mode
+- Adjustable microphone threshold via menu
+- Encoder-based threshold tuning in diagnostic mode
 
-## Roadmap
+### Changed
+- Improved beep detection with multiple Goertzel filters
+- Enhanced noise floor estimation
+- Better false positive rejection with SNR threshold
 
-- [x] Project setup
-- [x] Display driver implementation
-- [x] IMU level indicator
-- [x] Buzzer integration
-- [x] I2S microphone integration
-- [ ] Shot detection algorithm
-- [x] Countdown timer logic
-- [ ] SD card recording
-- [ ] Wireless button
-- [ ] Battery optimization
-- [ ] Field testing
+### Technical Details
+- 10 frequency bins covering 1400-2300Hz in 100Hz steps
+- Goertzel algorithm for efficient single-frequency detection
+- SNR threshold requirement (default 2.0x noise floor)
 
-## License
+---
 
-MIT License 
+## [3.1.0] - 2024-XX-XX
 
-## Author
+### Added
+- SPH0645LM4H I2S MEMS microphone integration
+- Acoustic beep detection for RO timer sync
+- Auto-start timer on beep detection in SHOOTER READY mode
+- Manual timer start still available as fallback
 
-Tbev - [GitHub Profile](https://github.com/tbevi)
+### Technical Details
+- I2S interface at 16kHz sample rate
+- 1500Hz target frequency detection
+- Goertzel algorithm implementation
+
+---
+
+## [3.0.0] - 2024-XX-XX
+
+### Added
+- EC11 rotary encoder with push button
+- Full menu system for settings adjustment
+- Countdown timer with adjustable par time (5-600 seconds)
+- Color-coded timer warnings (yellow/red)
+- CMT-1209-390T piezoelectric buzzer
+- Audio feedback for timer events
+- Settings persistence in flash memory
+- Calibration system for level indicator
+
+### Changed
+- Complete UI redesign with menu navigation
+- Timer display occupies bottom 2/3 of screen
+- Level indicator in top 1/3 of screen
+
+### Technical Details
+- Settings stored using ESP32 Preferences library
+- Encoder uses interrupt-based reading
+- LEDC PWM for buzzer tone generation
+
+---
+
+## [2.0.0] - 2024-XX-XX
+
+### Added
+- QMI8658 6-axis IMU integration
+- Real-time level indicator using accelerometer
+- Color-coded level status (green/red/blue)
+- RGB LED status indication
+- Adjustable tolerance and hysteresis settings
+
+### Technical Details
+- IIR filtering for smooth angle readings
+- Hysteresis-based state machine to prevent flicker
+- Tilt angle calculation using atan2
+
+---
+
+## [1.0.0] - 2024-XX-XX
+
+### Added
+- Initial project setup
+- ESP32-S3-LCD-1.9 board support
+- 170x320 ST7789 display driver (LovyanGFX)
+- Basic display functionality
+- Project structure and build system
+
+### Technical Details
+- PlatformIO build system
+- LovyanGFX library for display
+- Custom display manager class
+
+---
+
+## Version Numbering Scheme
+
+This project uses [Semantic Versioning](https://semver.org/):
+
+**MAJOR.MINOR.PATCH**
+
+- **MAJOR**: Incompatible API/hardware changes
+- **MINOR**: New features, backward-compatible
+- **PATCH**: Bug fixes, backward-compatible
+
+### Examples:
+- `3.3.0` → Major version 3, minor version 3, patch 0
+- `4.0.0` → Breaking change (new hardware, API redesign)
+- `3.3.1` → Bug fix for 3.3.0
+- `3.4.0` → New feature added to 3.x line
+
+---
+
+## How to Update This Changelog
+
+When making changes:
+
+1. Add entry under `[Unreleased]` section
+2. Categorize under: Added, Changed, Deprecated, Removed, Fixed, Security
+3. When releasing, move `[Unreleased]` items to new version section
+4. Update version number in `version.h`
+5. Update display version string in code
+6. Create git tag: `git tag v3.3.0`
+
+---
+
+## Links
+
+- [Project Repository](https://github.com/tbevi/Stage_Timer)
+- [Keep a Changelog](https://keepachangelog.com/)
+- [Semantic Versioning](https://semver.org/)

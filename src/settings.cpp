@@ -6,8 +6,7 @@ Settings settings;  // Global instance
 Settings::Settings() {
     // Default values
     tolerance = 0.5;
-    hysteresis = 0.1;
-    alpha = 0.2;
+    // Hysteresis calculated in level_monitor as 10% of tolerance (0.05 with default)
     displayBrightness = 255;
     ledBrightness = 50;
     parTimeSeconds = 60;
@@ -27,8 +26,7 @@ void Settings::load() {
     preferences.begin("stage_timer", false);
     
     tolerance = preferences.getFloat("tolerance", 0.5);
-    hysteresis = preferences.getFloat("hysteresis", 0.1);
-    alpha = preferences.getFloat("alpha", 0.2);
+    // Hysteresis removed - now calculated in level_monitor
     displayBrightness = preferences.getInt("disp_bright", 255);
     ledBrightness = preferences.getInt("led_bright", 50);
     
@@ -51,14 +49,15 @@ void Settings::load() {
     preferences.end();
     
     Serial.println("Settings loaded from flash");
+    Serial.printf("Tolerance: %.2f° (Hysteresis: %.2f° auto)\n", 
+                  tolerance, tolerance * 0.1f);
 }
 
 void Settings::save() {
     preferences.begin("stage_timer", false);
     
     preferences.putFloat("tolerance", tolerance);
-    preferences.putFloat("hysteresis", hysteresis);
-    preferences.putFloat("alpha", alpha);
+    // Hysteresis removed - now calculated in level_monitor
     preferences.putInt("disp_bright", displayBrightness);
     preferences.putInt("led_bright", ledBrightness);
     
@@ -72,6 +71,8 @@ void Settings::save() {
     preferences.end();
     
     Serial.println("Settings saved to flash");
+    Serial.printf("Tolerance: %.2f° (Hysteresis: %.2f° auto)\n", 
+                  tolerance, tolerance * 0.1f);
 }
 
 void Settings::saveCalibration() {

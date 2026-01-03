@@ -7,7 +7,7 @@ class Settings {
 public:
     // Level settings
     float tolerance;
-    float hysteresis;
+    // Note: Hysteresis auto-calculated as 10% of tolerance
     float alpha;  // IIR filter alpha
     
     // Display settings

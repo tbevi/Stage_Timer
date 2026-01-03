@@ -110,29 +110,33 @@ void LevelMonitor::update() {
     // Store for debugging
     rawAngle = accelAngle;
     
+    // Calculate hysteresis as 10% of tolerance
+    // This belongs here in level_monitor, not in settings
+    float hysteresis = settings.tolerance * 0.1f;
+    
     // Determine state with hysteresis
     LevelState newState;
     
     if (currentState == LEVEL_CENTER) {
-        if (filteredAngle > (settings.tolerance + settings.hysteresis)) {
+        if (filteredAngle > (settings.tolerance + hysteresis)) {
             newState = LEVEL_CW;
-        } else if (filteredAngle < -(settings.tolerance + settings.hysteresis)) {
+        } else if (filteredAngle < -(settings.tolerance + hysteresis)) {
             newState = LEVEL_CCW;
         } else {
             newState = LEVEL_CENTER;
         }
     } else if (currentState == LEVEL_CW) {
-        if (filteredAngle < (settings.tolerance - settings.hysteresis)) {
+        if (filteredAngle < (settings.tolerance - hysteresis)) {
             newState = LEVEL_CENTER;
-        } else if (filteredAngle < -(settings.tolerance + settings.hysteresis)) {
+        } else if (filteredAngle < -(settings.tolerance + hysteresis)) {
             newState = LEVEL_CCW;
         } else {
             newState = LEVEL_CW;
         }
     } else { // LEVEL_CCW
-        if (filteredAngle > -(settings.tolerance - settings.hysteresis)) {
+        if (filteredAngle > -(settings.tolerance - hysteresis)) {
             newState = LEVEL_CENTER;
-        } else if (filteredAngle > (settings.tolerance + settings.hysteresis)) {
+        } else if (filteredAngle > (settings.tolerance + hysteresis)) {
             newState = LEVEL_CW;
         } else {
             newState = LEVEL_CCW;
