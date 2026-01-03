@@ -37,11 +37,24 @@ private:
     LevelState currentState;
     bool stateChanged;
     
+    // Sensor data
     struct {
         float x, y, z;
     } acc;
     
+    struct {
+        float x, y, z;
+    } gyro;
+    
+    // Timing for sensor fusion
+    unsigned long lastUpdateTime;
+    
+    // Sensor fusion weight (98% gyro, 2% accel)
+    static constexpr float GYRO_WEIGHT = 0.98;
+    static constexpr float ACCEL_WEIGHT = 0.02;
+    
     float calculateTiltAngle();
+    float calculateGyroAngle(float dt);
 };
 
 extern LevelMonitor levelMonitor;

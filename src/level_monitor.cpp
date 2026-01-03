@@ -16,11 +16,21 @@ LevelMonitor::LevelMonitor() {
     stateChanged = true;
     qmi = nullptr;
     leds = nullptr;
+    lastUpdateTime = 0;
+    
+    acc.x = 0;
+    acc.y = 0;
+    acc.z = 0;
+    
+    gyro.x = 0;
+    gyro.y = 0;
+    gyro.z = 0;
 }
 
 void LevelMonitor::begin(SensorQMI8658* qmiPtr, CRGB* ledsPtr) {
     qmi = qmiPtr;
     leds = ledsPtr;
+    lastUpdateTime = millis();
 }
 
 void LevelMonitor::calibrate() {
@@ -55,46 +65,74 @@ void LevelMonitor::calibrate() {
 }
 
 float LevelMonitor::calculateTiltAngle() {
+    // Accelerometer-based tilt (subject to linear acceleration)
     float xCal = acc.x - settings.gravity.x;
     float angle = atan2(xCal, -acc.y) * 180.0 / PI;
     return angle;
 }
 
+float LevelMonitor::calculateGyroAngle(float dt) {
+    // Integrate gyroscope Z-axis (rotation around vertical axis)
+    // QMI8658 gyro units are degrees/second, so direct integration
+    float gyroAngleChange = gyro.z * dt;
+    return gyroAngleChange;
+}
+
 void LevelMonitor::update() {
     if (!qmi) return;
     
-    // Read sensor
-    if (qmi->getDataReady()) {
-        qmi->getAccelerometer(acc.x, acc.y, acc.z);
+    // Calculate time delta
+    unsigned long currentTime = millis();
+    float dt = (currentTime - lastUpdateTime) / 1000.0;  // Convert to seconds
+    lastUpdateTime = currentTime;
+    
+    // Prevent huge dt on first call or long delays
+    if (dt > 0.1 || dt <= 0) {
+        dt = 0.01;  // Default to 10ms
     }
     
-    // Calculate angles
-    rawAngle = calculateTiltAngle();
-    filteredAngle = settings.alpha * rawAngle + (1.0 - settings.alpha) * filteredAngle;
+    // Read both sensors
+    if (qmi->getDataReady()) {
+        qmi->getAccelerometer(acc.x, acc.y, acc.z);
+        qmi->getGyroscope(gyro.x, gyro.y, gyro.z);
+    }
+    
+    // Calculate angles from both sources
+    float accelAngle = calculateTiltAngle();
+    float gyroAngleChange = calculateGyroAngle(dt);
+    
+    // SENSOR FUSION: Complementary filter
+    // 98% gyro (short-term accuracy, no vibration noise)
+    // 2% accel (long-term reference, prevents gyro drift)
+    filteredAngle = GYRO_WEIGHT * (filteredAngle + gyroAngleChange) + 
+                    ACCEL_WEIGHT * accelAngle;
+    
+    // Store for debugging
+    rawAngle = accelAngle;
     
     // Determine state with hysteresis
     LevelState newState;
     
     if (currentState == LEVEL_CENTER) {
-        if (rawAngle > (settings.tolerance + settings.hysteresis)) {
+        if (filteredAngle > (settings.tolerance + settings.hysteresis)) {
             newState = LEVEL_CW;
-        } else if (rawAngle < -(settings.tolerance + settings.hysteresis)) {
+        } else if (filteredAngle < -(settings.tolerance + settings.hysteresis)) {
             newState = LEVEL_CCW;
         } else {
             newState = LEVEL_CENTER;
         }
     } else if (currentState == LEVEL_CW) {
-        if (rawAngle < (settings.tolerance - settings.hysteresis)) {
+        if (filteredAngle < (settings.tolerance - settings.hysteresis)) {
             newState = LEVEL_CENTER;
-        } else if (rawAngle < -(settings.tolerance + settings.hysteresis)) {
+        } else if (filteredAngle < -(settings.tolerance + settings.hysteresis)) {
             newState = LEVEL_CCW;
         } else {
             newState = LEVEL_CW;
         }
     } else { // LEVEL_CCW
-        if (rawAngle > -(settings.tolerance - settings.hysteresis)) {
+        if (filteredAngle > -(settings.tolerance - settings.hysteresis)) {
             newState = LEVEL_CENTER;
-        } else if (rawAngle > (settings.tolerance + settings.hysteresis)) {
+        } else if (filteredAngle > (settings.tolerance + settings.hysteresis)) {
             newState = LEVEL_CW;
         } else {
             newState = LEVEL_CCW;

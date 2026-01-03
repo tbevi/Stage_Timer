@@ -86,7 +86,16 @@ void setup() {
         true
     );
     qmi.enableAccelerometer();
-    USBSerial.println("IMU: OK!");
+    
+    // *** NEW: Configure and enable gyroscope for sensor fusion ***
+    qmi.configGyroscope(
+        SensorQMI8658::GYR_RANGE_512DPS,   // ±512 deg/sec (good for rifle movement)
+        SensorQMI8658::GYR_ODR_896_8Hz,     // Match accelerometer rate
+        SensorQMI8658::LPF_MODE_3,         // Low-pass filter
+        true
+    );
+    qmi.enableGyroscope();
+    USBSerial.println("IMU: Accel + Gyro OK!");
 
     // Initialize Level Monitor
     levelMonitor.begin(&qmi, leds);
