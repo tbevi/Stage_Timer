@@ -22,6 +22,7 @@ enum TopMenuItem {
 enum LevelSubItem {
     LEVEL_CALIBRATE,
     LEVEL_TOLERANCE,
+    LEVEL_DISPLAY_MODE,
     LEVEL_BACK,
     LEVEL_ITEM_COUNT
 };
@@ -246,7 +247,7 @@ void MenuSystem::drawLevelSubmenu() {
     tft->setCursor(5, 10);
     tft->println("< LEVEL");
     
-    const char* menuItems[] = {"Calibrate", "Tolerance", "Back"};
+    const char* menuItems[] = {"Calibrate", "Tolerance", "Display", "Back"};
     int startY = 50;
     int boxHeight = 50;
     int spacing = 8;
@@ -271,12 +272,14 @@ void MenuSystem::drawLevelSubmenu() {
             tft->setCursor(10, y + 27);
             tft->print(settings.tolerance, 1);
             tft->print(" deg");
-            
-            // Show auto-calculated hysteresis in small gray text
-            tft->setTextSize(1);
-            tft->setTextColor(TFT_DARKGREY);
-            tft->setCursor(10, y + 43);
-            tft->printf("(Hyst: %.2f)", settings.tolerance * 0.1f);
+        } else if (i == LEVEL_DISPLAY_MODE) {
+            tft->setTextSize(2);
+            tft->setCursor(10, y + 27);
+            if (settings.levelDisplayMode == LEVEL_DISPLAY_DEGREES) {
+                tft->print("Degrees");
+            } else {
+                tft->print("Arrow");
+            }
         }
     }
     
@@ -508,6 +511,18 @@ void MenuSystem::executeLevelMenuItem(int item) {
             adjustingFloatValue = &settings.tolerance;
             encoder->setPosition((int)(settings.tolerance * 10));
             drawValueAdjustment("TOLERANCE", settings.tolerance, "deg");
+            break;
+        case LEVEL_DISPLAY_MODE:
+            // Toggle between degrees and arrow
+            if (settings.levelDisplayMode == LEVEL_DISPLAY_DEGREES) {
+                settings.levelDisplayMode = LEVEL_DISPLAY_ARROW;
+            } else {
+                settings.levelDisplayMode = LEVEL_DISPLAY_DEGREES;
+            }
+            settings.save();
+            drawLevelSubmenu();
+            Serial.printf("Display mode changed to: %s\n",
+                            settings.levelDisplayMode == LEVEL_DISPLAY_DEGREES ? "Degrees" : "Arrow");
             break;
         case LEVEL_BACK:
             currentMenu = MENU_TOP_LEVEL;

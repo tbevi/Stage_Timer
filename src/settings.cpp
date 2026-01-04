@@ -7,13 +7,15 @@ Settings::Settings() {
     // Default values
     tolerance = 0.5;
     // Hysteresis calculated in level_monitor as 10% of tolerance (0.05 with default)
+    levelDisplayMode = LEVEL_DISPLAY_DEGREES;  // Default to degrees
+    
     displayBrightness = 255;
     ledBrightness = 50;
     parTimeSeconds = 60;
     yellowWarningSeconds = 30;
     redWarningSeconds = 10;
     buzzerVolume = 50;
-    micThreshold = 1500.0;  // Default threshold for beep detection
+    micThreshold = 1500.0;
 
     gravity.x = 0;
     gravity.y = 0;
@@ -26,7 +28,8 @@ void Settings::load() {
     preferences.begin("stage_timer", false);
     
     tolerance = preferences.getFloat("tolerance", 0.5);
-    // Hysteresis removed - now calculated in level_monitor
+    levelDisplayMode = (LevelDisplayMode)preferences.getInt("disp_mode", LEVEL_DISPLAY_DEGREES);
+    
     displayBrightness = preferences.getInt("disp_bright", 255);
     ledBrightness = preferences.getInt("led_bright", 50);
     
@@ -51,13 +54,16 @@ void Settings::load() {
     Serial.println("Settings loaded from flash");
     Serial.printf("Tolerance: %.2f° (Hysteresis: %.2f° auto)\n", 
                   tolerance, tolerance * 0.1f);
+    Serial.printf("Level display mode: %s\n", 
+                  levelDisplayMode == LEVEL_DISPLAY_DEGREES ? "Degrees" : "Arrow");
 }
 
 void Settings::save() {
     preferences.begin("stage_timer", false);
     
     preferences.putFloat("tolerance", tolerance);
-    // Hysteresis removed - now calculated in level_monitor
+    preferences.putInt("disp_mode", (int)levelDisplayMode);
+    
     preferences.putInt("disp_bright", displayBrightness);
     preferences.putInt("led_bright", ledBrightness);
     
@@ -73,6 +79,8 @@ void Settings::save() {
     Serial.println("Settings saved to flash");
     Serial.printf("Tolerance: %.2f° (Hysteresis: %.2f° auto)\n", 
                   tolerance, tolerance * 0.1f);
+    Serial.printf("Level display mode: %s\n", 
+                  levelDisplayMode == LEVEL_DISPLAY_DEGREES ? "Degrees" : "Arrow");
 }
 
 void Settings::saveCalibration() {

@@ -16,6 +16,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Trainer mode with random start delay
 
 ---
+## [3.4.0] - 2025-01-04
+
+### Added
+- Added level arrows.
+- Added menue option for level or degrees.
+
+### Changed
+- Changed angle display to X.X for angles below 10 degrees, XXX for angles above 10.
+
+### Removed
+- Removed CW/CCW from level display
+- Removed note in menu system that hyst is calculated at 10% of angle tol.
+
+### Known Bugs
+- Version number does not re appear after entering settings menu.
+- Display brightness does change.
+
 ## [3.3.1] - 2025-01-03
 
 ### Changed

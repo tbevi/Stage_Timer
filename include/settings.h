@@ -3,12 +3,18 @@
 
 #include <Preferences.h>
 
+// Level display modes
+enum LevelDisplayMode {
+    LEVEL_DISPLAY_DEGREES,
+    LEVEL_DISPLAY_ARROW
+};
+
 class Settings {
 public:
     // Level settings
     float tolerance;
-    // Note: Hysteresis auto-calculated as 10% of tolerance
-    float alpha;  // IIR filter alpha
+    // Note: Hysteresis is calculated in level_monitor as 10% of tolerance
+    LevelDisplayMode levelDisplayMode;  // NEW: Display mode (degrees or arrow)
     
     // Display settings
     int displayBrightness;

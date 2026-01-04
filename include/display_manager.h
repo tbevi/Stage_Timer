@@ -48,6 +48,11 @@ public:
     // Helper functions
     void drawProgressBar(int x, int y, int width, int height, float percentage, uint16_t color);
     
+    // Arrow display functions
+    void drawDirectionalArrow(float angle);
+    void drawCurvedArrow(int cx, int cy, bool pointLeft);
+    void drawCheckmark(int cx, int cy);
+    
     LGFX* getTFT() { return &tft; }
     
 private:
@@ -56,6 +61,7 @@ private:
     int lastDrawnSeconds;
     float lastDisplayedAngle;
     uint16_t lastStatusColor;
+    int lastArrowDirection; // track arrow state
 };
 
 extern DisplayManager display;
