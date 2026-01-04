@@ -6,7 +6,7 @@
 
 #define VERSION_MAJOR 3
 #define VERSION_MINOR 3
-#define VERSION_PATCH 0
+#define VERSION_PATCH 1
 
 // Build metadata (optional)
 #define VERSION_BUILD "20250103"  // YYYYMMDD format
@@ -26,6 +26,9 @@
 
 /*
  * VERSION HISTORY:
+ * 
+ *  * 3.3.1 (2025-01-03)
+ *   - fixed virsion number on home screen
  * 
  * 3.3.0 (2025-01-03)
  *   - Added gyroscope sensor fusion (98% gyro, 2% accel)

@@ -366,7 +366,7 @@ void loop() {
     // Update display if in main mode
     if (!menu.isInMenu()) {
         static unsigned long lastDisplayUpdate = 0;
-        if (millis() - lastDisplayUpdate > 100) {
+        if (millis() - lastDisplayUpdate > 20) {
             lastDisplayUpdate = millis();
             
             // Check if we're in SHOOTER READY mode
@@ -443,5 +443,5 @@ void loop() {
         }
     }
     
-    delay(5);
+    yield();
 }

@@ -16,6 +16,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Trainer mode with random start delay
 
 ---
+## [3.3.1] - 2025-01-03
+
+### Changed
+- Changed sensor fusion ratio and loop timings to increase responsiveness
+
+
+### Fixed
+- version number on home screen shows correct version. 
+
+
+### Known Bugs
+- Version number does not re appear after entering settings menue.
+- Hysteresis value show in setting menue overlaps box, should be removed all together.
+
 
 ## [3.3.0] - 2025-01-03
 

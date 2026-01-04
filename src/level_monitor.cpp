@@ -92,10 +92,9 @@ void LevelMonitor::update() {
     }
     
     // Read both sensors
-    if (qmi->getDataReady()) {
-        qmi->getAccelerometer(acc.x, acc.y, acc.z);
-        qmi->getGyroscope(gyro.x, gyro.y, gyro.z);
-    }
+    qmi->getAccelerometer(acc.x, acc.y, acc.z);
+    qmi->getGyroscope(gyro.x, gyro.y, gyro.z);
+    
     
     // Calculate angles from both sources
     float accelAngle = calculateTiltAngle();

@@ -49,9 +49,9 @@ private:
     // Timing for sensor fusion
     unsigned long lastUpdateTime;
     
-    // Sensor fusion weight (98% gyro, 2% accel)
-    static constexpr float GYRO_WEIGHT = 0.98;
-    static constexpr float ACCEL_WEIGHT = 0.02;
+    // Sensor fusion weight (98% gyro, 2% accel), inceased to 88/12 for faster response
+    static constexpr float GYRO_WEIGHT = 0.95;
+    static constexpr float ACCEL_WEIGHT = 0.05;
     
     float calculateTiltAngle();
     float calculateGyroAngle(float dt);

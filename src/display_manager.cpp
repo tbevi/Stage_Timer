@@ -1,5 +1,6 @@
 #include "display_manager.h"
 #include "settings.h" 
+#include "version.h"
 DisplayManager display;
 
 LGFX::LGFX(void) {
@@ -187,7 +188,7 @@ void DisplayManager::drawTimerDisplay(int remainingSeconds, float percentage, ui
         tft.setTextSize(1);
         tft.setTextColor(TFT_DARKGREY);
         tft.setCursor(10, 300);
-        tft.println("Stage Timer v3.0");
+        tft.println("Stage Timer v" VERSION_STRING);
         firstDraw = false;
     }
 }
