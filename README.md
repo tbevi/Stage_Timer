@@ -20,33 +20,33 @@ Working on Phase 3
 ## Features
 
 - Phase 1:
-  - **Real-time level indicator** using IMU (unique feature!)
+  - [x] **Real-time level indicator** using IMU (unique feature!)
 - Phase 1.5:
-  - ~~Integrate gyro to avoid false level change readings due to left right movements~~
-  - Added filtering/hysterisis to help smoth out level reading.
+  - [x] ~~Integrate gyro to avoid false level change readings due to left right movements~~
+  - [x] Added filtering/hysterisis to help smoth out level reading.
 - Phase 2
-  - Integrate EC11 click rotory encoder.
-  - **Countdown timer** with adjustable par time presets (60/90/120/150/180s)
+  - [x] Integrate EC11 click rotory encoder.
+  - [x] **Countdown timer** with adjustable par time presets (60/90/120/150/180s)
 - Phase 2.5
-  - Possible integration of beeper/buzzer/speaker 
+  - [x] Possible integration of beeper/buzzer/speaker 
 - Phase 3
-  - Integrate SPH0645 Digital microphone for shot and RO beeper detection.
-  - Set up data logging (SD card?) for mic and IMU recording for offline testing of code.
-  - **RO timer sync** via acoustic beep detection
-  - Long hold boot button to activate microphone diagnostic view
+  - [x] Integrate SPH0645 Digital microphone for shot and RO beeper detection.
+  - [ ] Set up data logging (SD card?) for mic and IMU recording for offline testing of code.
+  - [x] **RO timer sync** via acoustic beep detection
+  - [x] Long hold boot button to activate microphone diagnostic view
 - Future possible features
-  - **Dual-sensor shot detection** (accelerometer + microphone)
-  - **Wireless start button** using ESP-NOW
-  - Setting to dissable mic
+  - [ ] **Dual-sensor shot detection** (accelerometer + microphone)
+  - [ ] **Wireless start button** using ESP-NOW
+  - [ ] Setting to dissable mic
 
 - Optional development
-    - Consider adding "trainer" mode where when selected a random count down timer for start of part time.
-    - Count shots and include shots remaining bar
-    - Battery bar
-    - Use gyro or something else to prevent left right movement form affecting level.
+    - [ ] Consider adding "trainer" mode where when selected a random count down timer for start of part time.
+    - [ ] Count shots and include shots remaining bar
+    - [x] Battery bar
+    - [ ] Use gyro or something else to prevent left right movement form affecting level.
 
 - To Do
-  - Upload pin diagrams
+  - [ ] Upload pin diagrams
     
 ## Hardware
 
