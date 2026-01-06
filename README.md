@@ -62,6 +62,7 @@ Working on Phase 3
   - GND        // GND PINS
 - Piezo buzzer (85+ dB) (https://www.amazon.com/dp/B0DHGP95K4?ref=ppx_yo2ov_dt_b_fed_asin_title&th=1)
 - MicroSD card slot
+- MX1.25 3.7V battery
 - Wireless remote button (TBD but leaning toward ESP32-C3 based)
 
 ## Getting Started
