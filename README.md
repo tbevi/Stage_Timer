@@ -31,13 +31,14 @@ Working on Phase 3
   - [x] Possible integration of beeper/buzzer/speaker 
 - Phase 3
   - [x] Integrate SPH0645 Digital microphone for shot and RO beeper detection.
-  - [ ] Set up data logging (SD card?) for mic and IMU recording for offline testing of code.
+  - [x] Set up data logging (SD card?) for mic and IMU recording for offline testing of code.
   - [x] **RO timer sync** via acoustic beep detection
   - [x] Long hold boot button to activate microphone diagnostic view
 - Future possible features
   - [ ] **Dual-sensor shot detection** (accelerometer + microphone)
   - [ ] **Wireless start button** using ESP-NOW
   - [ ] Setting to dissable mic
+      
 
 - Optional development
     - [ ] Consider adding "trainer" mode where when selected a random count down timer for start of part time.
