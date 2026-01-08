@@ -41,10 +41,15 @@ Working on Phase 3
       
 
 - Optional development
+  - SW 
     - [ ] Consider adding "trainer" mode where when selected a random count down timer for start of part time.
     - [ ] Count shots and include shots remaining bar
     - [x] Battery bar
-    - [ ] Use gyro or something else to prevent left right movement form affecting level.
+    - [x] Use gyro or something else to prevent left right movement form affecting level.
+  - HW 
+    - [ ] Remove volume control resistor from daughter board
+    - [ ] Add mic controll mosfet to daughter board
+    - [ ] Consider external start wired button (https://www.digikey.com/en/products/detail/panasonic-electronic-components/EVP-AWED4A/8568275)
 
 - To Do
   - [ ] Upload pin diagrams
